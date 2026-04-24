@@ -79,7 +79,7 @@ The final runtime package should include at least:
 
 - `ecm.x86.asi`
 
-`bass.dll` is also required at runtime. If you do not bundle it with your release package, users can obtain it from the official BASS website:
+This project uses the native BASS C/C++ API, and `bass.dll` is also required at runtime. If you do not bundle it with your release package, users can obtain it from the official BASS website:
 
 - https://www.un4seen.com/
 

@@ -163,7 +163,8 @@ Game Folder/
 ## Notes
 
 - If `bass.dll` is missing or the wrong version is loaded, audio playback will fail.
-- `bass.dll` is required at runtime and can be obtained from the official BASS website: https://www.un4seen.com/
+- This project uses the native BASS C/C++ API and requires `bass.dll` at runtime.
+- `bass.dll` can be obtained from the official BASS website: https://www.un4seen.com/
 - BASS is a third-party library and should be used or redistributed according to the applicable BASS license terms.
 - The mod writes a crash dump file on unhandled exceptions.
 - This repository includes third-party dependencies and keeps the original MIT license notice.
