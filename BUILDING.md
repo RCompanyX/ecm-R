@@ -31,7 +31,7 @@ This repository already includes or references the main dependencies needed for 
 ## 1. Clone the repository
 
 ```powershell
-git clone https://github.com/RCompanyX/ecm.git
+git clone https://github.com/RCompanyX/ecm-r.git
 cd ecm-r
 ```
 
