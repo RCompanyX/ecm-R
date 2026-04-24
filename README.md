@@ -22,6 +22,10 @@ If you are looking for the original source, attribution chain, or upstream histo
 - A working ASI loading setup or a compatible mod manager
 - Microsoft Visual C++ Redistributable (x86): https://aka.ms/vs/17/release/vc_redist.x86.exe
 
+## Building
+
+Build instructions for generating the plugin are available in [BUILDING.md](BUILDING.md).
+
 ## Installation
 
 ### Option 1: Mr. Modman
@@ -66,8 +70,10 @@ If a filename follows the format `Artist - Title.ext`, the overlay chyron uses t
 
 ## Controls
 
-- `F11`: Toggle the in-game overlay
-- `F10`: Skip to the next song
+- `F11`: Toggle the in-game overlay by default
+- `F10`: Skip to the next song by default
+
+Both hotkeys can be changed in `ecm.x86.ini`.
 
 ## Overlay
 
@@ -94,6 +100,10 @@ playlist = "Music"
 volume = "100"
 version = "..."
 
+[keys]
+toggle_overlay = F11
+skip_track = F10
+
 [trax]
 song1.mp3 = ALL
 song2.mp3 = FE
@@ -105,6 +115,18 @@ song3.mp3 = IG
 - `playlist`: Folder name used as the music library. Default is `Music`.
 - `volume`: Playback volume from `0` to `100`.
 - `version`: Internal version marker used by the mod.
+
+### Key Bindings
+
+- `toggle_overlay`: Key used to show or hide the overlay.
+- `skip_track`: Key used to jump to the next song.
+
+Supported values include:
+
+- Function keys such as `F1` to `F24`
+- Letters such as `A` to `Z`
+- Digits such as `0` to `9`
+- Named keys such as `Space`, `Tab`, `Enter`, `Escape`, `Insert`, `Delete`, `Home`, `End`, `PageUp`, `PageDown`, `Up`, `Down`, `Left`, and `Right`
 
 ### Track Routing
 

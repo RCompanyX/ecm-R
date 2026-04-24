@@ -1,4 +1,4 @@
-﻿#if KIERO_INCLUDE_OPENGL
+#if KIERO_INCLUDE_OPENGL
 
 #include "../utils/logger/logger.hpp"
 #include "opengl3_impl.h"
@@ -28,6 +28,7 @@ BOOL __stdcall hkWglSwapBuffers(_In_ HDC hDc)
 		init = true;
 	}
 
+   input::update();
 	menus::prepare();
 	menus::update();
 	menus::present();

@@ -1,4 +1,4 @@
-﻿#if KIERO_INCLUDE_D3D10
+#if KIERO_INCLUDE_D3D10
 
 #include "d3d10_impl.h"
 #include <d3d10.h>
@@ -34,6 +34,7 @@ long __stdcall hkPresent10(IDXGISwapChain* pSwapChain, UINT SyncInterval, UINT F
 		init = true;
 	}
 
+   input::update();
 	menus::prepare();
 	menus::update();
 	menus::present();

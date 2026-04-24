@@ -2,10 +2,86 @@
 #include "logger/logger.hpp"
 #include "fs/fs.hpp"
 
+#include <algorithm>
+#include <cctype>
+#include <sstream>
+
 #include "settings.hpp"
 #include "menus/menus.hpp"
 #include "hook/hook.hpp"
 #include "audio/audio.hpp"
+#include "input/input.hpp"
+
+namespace
+{
+	std::string trim_copy(std::string value)
+	{
+		auto first = std::find_if_not(value.begin(), value.end(), [](unsigned char ch) { return std::isspace(ch) != 0; });
+		auto last = std::find_if_not(value.rbegin(), value.rend(), [](unsigned char ch) { return std::isspace(ch) != 0; }).base();
+
+		if (first >= last)
+		{
+			return {};
+		}
+
+		return std::string(first, last);
+	}
+
+	std::string normalize_trax_value(const char* raw_value)
+	{
+		if (!raw_value)
+		{
+			return "ALL";
+		}
+
+		std::string value = trim_copy(raw_value);
+
+		if (value.size() >= 2 && value.front() == '"' && value.back() == '"')
+		{
+			value = value.substr(1, value.size() - 2);
+			value = trim_copy(value);
+		}
+
+		std::transform(value.begin(), value.end(), value.begin(), [](unsigned char ch) {
+			return static_cast<char>(std::toupper(ch));
+		});
+
+		if (value == "FE" || value == "IG" || value == "ALL")
+		{
+			return value;
+		}
+
+		return "ALL";
+	}
+
+	const char* safe_ini_get(ini_t* config, const char* section, const char* key, const char* fallback)
+	{
+		const char* value = ini_get(config, section, key);
+		return value ? value : fallback;
+	}
+
+	std::string build_config_text(const std::string& playlist, const int volume, const std::string& toggle_overlay, const std::string& skip_track)
+	{
+		std::ostringstream output;
+		output << "[core]\n";
+		output << "playlist = \"" << playlist << "\"\n";
+		output << "volume = \"" << volume << "\"\n";
+		output << "version = \"" << VERSION << "\"\n\n";
+		output << "[keys]\n";
+		output << "toggle_overlay = " << toggle_overlay << "\n";
+		output << "skip_track = " << skip_track << "\n\n";
+		output << "[trax]\n";
+
+		for (const auto& song : audio::playlist_files)
+		{
+			std::string file = song.first;
+			file.erase(0, audio::playlist_dir.size() + 1);
+			output << file << " = " << normalize_trax_value(song.second.c_str()) << "\n";
+		}
+
+		return output.str();
+	}
+}
 
 void settings::init()
 {
@@ -22,53 +98,46 @@ void settings::update()
 	{
 		config = ini_load(&settings::config_file[0]);
 
-		if (strcmp(ini_get(config, "core", "version"), VERSION))
+		if (!config)
 		{
 			fs::del(settings::config_file);
 			settings::update();
 			return;
 		}
 
+        if (strcmp(safe_ini_get(config, "core", "version", ""), VERSION))
+		{
+			fs::del(settings::config_file);
+			settings::update();
+			return;
+		}
 
-		std::string config_string = ini_tostring(config);
+		const std::string toggle_overlay = safe_ini_get(config, "keys", "toggle_overlay", "F11");
+		const std::string skip_track = safe_ini_get(config, "keys", "skip_track", "F10");
 
-		audio::volume = std::stoi(ini_get(config, "core", "volume"));
+		audio::volume = std::stoi(safe_ini_get(config, "core", "volume", "100"));
+		input::toggle_overlay_key = input::key_from_string(toggle_overlay.c_str(), VK_F11);
+		input::skip_track_key = input::key_from_string(skip_track.c_str(), VK_F10);
 
-		audio::playlist_name = ini_get(config, "core", "playlist");
+		audio::playlist_name = safe_ini_get(config, "core", "playlist", "Music");
 		audio::playlist_dir = audio::playlist_name;
 		audio::playlist_dir = fs::get_self_path() + audio::playlist_dir;
 		audio::enumerate_playlist();
-
-		std::string trax_config = "[trax]\n";
 
 		for (int i = 0; i < audio::playlist_files.size(); ++i)
 		{
 			std::string song = audio::playlist_files[i].first;
 			song.erase(0, audio::playlist_dir.size() + 1);
-			if (config_string.find(song) != std::string::npos)
-			{
-				const char* res = ini_get(config, "trax", song.c_str());
-				audio::playlist_files[i].second = res;
-			}
-			else
-			{
-				trax_config.append(logger::va("%s = ALL\n", song.c_str()));
-				audio::playlist_files[i].second = "ALL";
-			}
+          const char* res = ini_get(config, "trax", song.c_str());
+			audio::playlist_files[i].second = normalize_trax_value(res);
 		}
 
-		ini_merge(config, ini_create(trax_config.c_str(), strlen(trax_config.c_str())));
-		ini_save(config, settings::config_file.c_str());
+		fs::write(settings::config_file, build_config_text(audio::playlist_name, audio::volume, toggle_overlay, skip_track), false);
 	}
 	else if (!fs::exists(settings::config_file))
 	{
-
-		std::string ini_default = logger::va(
-			"[core]\n"
-			"playlist = \"Music\"\n"
-			"volume = \"100\"\n"
-			"version = \"%s\"\n"
-			"[trax]\n", VERSION);
+		input::toggle_overlay_key = VK_F11;
+		input::skip_track_key = VK_F10;
 
 		audio::playlist_name = "Music";
 		audio::playlist_dir = audio::playlist_name;
@@ -77,14 +146,12 @@ void settings::update()
 
 		for (int i = 0; i < audio::playlist_files.size(); ++i)
 		{
-			std::string song = audio::playlist_files[i].first;
-			song.erase(0, audio::playlist_dir.size() + 1);
-			ini_default.append(logger::va("%s = ALL\n", song.c_str()));
+          audio::playlist_files[i].second = "ALL";
 		}
 
-		config = ini_create(ini_default.c_str(), strlen(ini_default.c_str()));
-
-		ini_save(config, settings::config_file.c_str());
+		audio::volume = 100;
+		fs::write(settings::config_file, build_config_text(audio::playlist_name, audio::volume, "F11", "F10"), false);
+		return;
 	}
 
 	ini_free(config);

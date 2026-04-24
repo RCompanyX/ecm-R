@@ -10,6 +10,8 @@ class input
 {
 public:
 	static void init_overlay();
+  static void update();
+	static std::uint32_t key_from_string(const char* key_text, std::uint32_t default_key);
 
 	enum callback_type : std::uint8_t
 	{
@@ -29,4 +31,6 @@ public:
 	static bool is_key_down(std::uint32_t key);
 
 	static std::unordered_map<input::callback_type, std::vector<input::callback>> callbacks_;
+  static std::uint32_t toggle_overlay_key;
+	static std::uint32_t skip_track_key;
 };

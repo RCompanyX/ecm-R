@@ -37,6 +37,7 @@ long __stdcall hkPresent11(IDXGISwapChain* pSwapChain, UINT SyncInterval, UINT F
 		init = true;
 	}
 
+   input::update();
 	menus::prepare();
 	menus::update();
 	menus::present();

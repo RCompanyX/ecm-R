@@ -1,4 +1,4 @@
-﻿#if KIERO_INCLUDE_D3D9
+#if KIERO_INCLUDE_D3D9
 
 #include "d3d9_impl.h"
 #include <d3d9.h>
@@ -43,6 +43,7 @@ long __stdcall hkEndScene(LPDIRECT3DDEVICE9 pDevice)
 		init = true;
 	}
 
+   input::update();
 	menus::prepare();
 	menus::update();
 	menus::present();
