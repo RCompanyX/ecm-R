@@ -50,6 +50,8 @@ deps/imgui/
 deps/minhook/
 deps/kiero/
 deps/ini_rw/
+deps/freetype-2.12.1/build/
+deps/freetype-2.12.1/out/
 
 # Music and user data
 Music/
