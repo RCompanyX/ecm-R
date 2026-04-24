@@ -1,11 +1,13 @@
 #include "global.hpp"
 
 #include "logger/logger.hpp"
+#include "audio/audio.hpp"
 
 #include "input.hpp"
 
 WNDPROC o_wndproc;
 bool toggle_once = false;
+bool skip_once = false;
 std::unordered_map<input::callback_type, std::vector<input::callback>> input::callbacks_;
 
 LRESULT __stdcall wndproc(const HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
@@ -58,10 +60,25 @@ void input::init_overlay()
 
 	input::on(input::callback_type::on_key_down, [](auto key) -> input::result_type
 	{
-		if (key == 122 && !once)
+		if (key == VK_F11 && !once)
 		{
 			global::hide = !global::hide;
 			once = true;
+		}
+
+		if (key == VK_F10 && !skip_once)
+		{
+			if (audio::playing)
+			{
+				audio::stop(0);
+				audio::play_next_song();
+			}
+			else if (!audio::paused)
+			{
+				audio::play_next_song();
+			}
+
+			skip_once = true;
 		}
 
 		return input::result_type::cont;
@@ -69,9 +86,14 @@ void input::init_overlay()
 
 	input::on(input::callback_type::on_key_up, [](auto key) -> input::result_type
 	{
-		if (key == 122 && once)
+		if (key == VK_F11 && once)
 		{
 			once = false;
+		}
+
+		if (key == VK_F10 && skip_once)
+		{
+			skip_once = false;
 		}
 
 		return input::result_type::cont;

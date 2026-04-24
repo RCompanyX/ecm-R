@@ -1,2 +1,67 @@
-build
-.vscode
+# ECM .gitignore
+
+# Binaries and DLLs
+*.dll
+*.exe
+*.asi
+*.pdb
+*.lib
+*.obj
+*.exp
+*.log
+*.dmp
+
+# Build folders
+build/
+bin/
+Debug/
+Release/
+x64/
+x86/
+
+# Visual Studio
+.vs/
+*.suo
+*.user
+*.VC.db
+*.VC.opendb
+*.ipch
+*.aps
+*.ncb
+*.opensdf
+*.sdf
+*.cache
+*.tlog
+*.idb
+*.ilk
+*.pch
+*.sbr
+*.unsuccessfulbuild
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Python cache
+__pycache__/
+
+# Dependency folders
+deps/imgui/
+deps/minhook/
+deps/kiero/
+deps/ini_rw/
+
+# Music and user data
+Music/
+*.ini
+
+# Misc
+*.bak
+*.tmp
+*.old
+
+# Ignore local configuration
+*.local
+
+# Editor folders
+.vscode/
