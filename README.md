@@ -1,5 +1,5 @@
 <h1 align="center">ECM-R</h1>
-<p align="center"><b>Fork Notice:</b> ECM-R is a fork of the original ECM (External Custom Music) project. Keep the original license notice and review the upstream project for attribution, licensing, and development history.</p>
+<p align="center"><b>Fork Notice:</b> ECM-R is a fork of the original ECM (External Custom Music) project by BttrDrgn. Keep the original license notice and review the upstream project for attribution, licensing, and development history.</p>
 <h2 align="center">External Custom Music Reloaded</h2>
 <p align="center">A mod for Need for Speed: Underground 2 that plays custom music without overwriting the game's original files.</p>
 
@@ -14,6 +14,8 @@ Current behavior in this fork is focused on **NFSU2**.
 
 This repository is maintained as a fork.
 If you are looking for the original ECM source, attribution chain, or upstream history, review the upstream repository and the included license file.
+
+Original author of ECM: **BttrDrgn**.
 
 ## Requirements
 

@@ -129,5 +129,5 @@ Build and deploy `Release | Win-x86` unless you are targeting a different loader
 
 ## Branding note
 
-ECM-R is a fork of the original ECM project.
+ECM-R is a fork of the original ECM project by **BttrDrgn**.
 The repository branding has been updated to ECM-R, but the runtime filenames currently remain `ecm.x86.asi` and `ecm.x86.ini` for compatibility.
