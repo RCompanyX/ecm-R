@@ -68,7 +68,7 @@ ECM-R currently scans the playlist folder for these file types:
 - Songs are shuffled automatically.
 - When a track ends, the next one is played.
 - Songs can be tagged for frontend-only or in-game-only playback through the configuration file.
-- Some intro or movie screens temporarily pause playback.
+- Music can be stopped automatically during loading screens to better match the game's original behavior.
 
 If a filename follows the format `Artist - Title.ext`, the overlay chyron uses that information when possible.
 
@@ -104,6 +104,9 @@ playlist = "Music"
 volume = "100"
 version = "..."
 
+[config]
+stop_music_on_loading_screens = true
+
 [keys]
 toggle_overlay = F11
 skip_track = F10
@@ -119,6 +122,12 @@ song3.mp3 = IG
 - `playlist`: Folder name used as the music library. Default is `Music`.
 - `volume`: Playback volume from `0` to `100`.
 - `version`: Internal version marker used by the mod.
+
+### Config Settings
+
+- `stop_music_on_loading_screens`: Controls whether ECM-R stops the current song during loading screens before starting another song after loading. Default is `true`.
+
+Accepted values include `true`, `false`, `1`, `0`, `yes`, `no`, `on`, and `off`.
 
 ### Key Bindings
 
@@ -143,6 +152,19 @@ Allowed values:
 - `IG`: In-game only
 
 This lets you separate menu music from racing music.
+
+## Loading Screen Behavior
+
+By default, ECM-R stops custom music during loading screens and starts another song when normal frontend or in-game playback resumes.
+
+This behavior is controlled by:
+
+```ini
+[config]
+stop_music_on_loading_screens = true
+```
+
+Set it to `false` if you want custom music to continue following the older behavior.
 
 ## Playlist Folder
 

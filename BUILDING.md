@@ -103,6 +103,15 @@ next to the game executable or inside the mod loader's expected scripts director
 
 Then create a `Music` folder in the expected mod location and place the audio files there.
 
+On first launch, ECM-R also creates `ecm-r.x86.ini` automatically. The generated configuration now includes a `[config]` section with:
+
+```ini
+[config]
+stop_music_on_loading_screens = true
+```
+
+This option controls whether custom music is stopped during loading screens. The default value is `true` to better match the game's original behavior.
+
 ## Troubleshooting
 
 ### MSB8020: Visual Studio 2022 build tools not found
