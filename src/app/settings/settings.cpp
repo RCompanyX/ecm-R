@@ -60,6 +60,117 @@ namespace
 		return value ? value : fallback;
 	}
 
+	std::string build_version_line()
+	{
+		return std::string("version = \"") + VERSION + "\"";
+	}
+
+	void update_config_version_only(const std::string& path)
+	{
+		const std::string contents = fs::read(path);
+		if (contents.empty())
+		{
+			return;
+		}
+
+		const std::string newline = contents.find("\r\n") != std::string::npos ? "\r\n" : "\n";
+		const bool has_trailing_newline = !contents.empty() && (contents.back() == '\n' || contents.back() == '\r');
+
+		std::vector<std::string> lines;
+		for (std::size_t start = 0; start < contents.size();)
+		{
+			const auto end = contents.find_first_of("\r\n", start);
+			if (end == std::string::npos)
+			{
+				lines.emplace_back(contents.substr(start));
+				break;
+			}
+
+			lines.emplace_back(contents.substr(start, end - start));
+			start = end + 1;
+			if (contents[end] == '\r' && start < contents.size() && contents[start] == '\n')
+			{
+				++start;
+			}
+		}
+
+		std::size_t insert_index = lines.size();
+		std::size_t version_index = lines.size();
+		bool in_core = false;
+		bool found_core = false;
+
+		for (std::size_t i = 0; i < lines.size(); ++i)
+		{
+			const std::string trimmed = trim_copy(lines[i]);
+			const bool is_section = trimmed.size() >= 2 && trimmed.front() == '[' && trimmed.back() == ']';
+
+			if (is_section)
+			{
+				if (in_core)
+				{
+					insert_index = i;
+					break;
+				}
+
+				in_core = trimmed == "[core]";
+				found_core = found_core || in_core;
+				continue;
+			}
+
+			if (!in_core)
+			{
+				continue;
+			}
+
+			const auto equals = lines[i].find('=');
+			if (equals == std::string::npos)
+			{
+				continue;
+			}
+
+			if (trim_copy(lines[i].substr(0, equals)) == "version")
+			{
+				version_index = i;
+				break;
+			}
+		}
+
+		if (!found_core)
+		{
+			return;
+		}
+
+		const std::string version_line = build_version_line();
+		if (version_index < lines.size())
+		{
+			lines[version_index] = version_line;
+		}
+		else
+		{
+			lines.insert(lines.begin() + static_cast<std::ptrdiff_t>(insert_index), version_line);
+		}
+
+		std::ostringstream output;
+		for (std::size_t i = 0; i < lines.size(); ++i)
+		{
+			if (i > 0)
+			{
+				output << newline;
+			}
+			output << lines[i];
+		}
+
+		if (has_trailing_newline)
+		{
+			output << newline;
+		}
+
+		if (output.str() != contents)
+		{
+			fs::write(path, output.str(), false);
+		}
+	}
+
 	std::string build_config_text(const std::string& playlist, const int volume, const std::string& toggle_overlay, const std::string& skip_track)
 	{
 		std::ostringstream output;
@@ -105,13 +216,7 @@ void settings::update()
 			return;
 		}
 
-        if (strcmp(safe_ini_get(config, "core", "version", ""), VERSION))
-		{
-			fs::del(settings::config_file);
-			settings::update();
-			return;
-		}
-
+       const bool version_changed = std::strcmp(safe_ini_get(config, "core", "version", ""), VERSION) != 0;
 		const std::string toggle_overlay = safe_ini_get(config, "keys", "toggle_overlay", "F11");
 		const std::string skip_track = safe_ini_get(config, "keys", "skip_track", "F10");
 
@@ -132,7 +237,10 @@ void settings::update()
 			audio::playlist_files[i].second = normalize_trax_value(res);
 		}
 
-		fs::write(settings::config_file, build_config_text(audio::playlist_name, audio::volume, toggle_overlay, skip_track), false);
+        if (version_changed)
+		{
+			update_config_version_only(settings::config_file);
+		}
 	}
 	else if (!fs::exists(settings::config_file))
 	{
