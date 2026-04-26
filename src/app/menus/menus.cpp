@@ -123,6 +123,39 @@ void menus::actions()
 			audio::play_next_song();
 		}
 
+		bool shuffle_enabled = audio::shuffle_enabled;
+		if (ImGui::Checkbox("Shuffle", &shuffle_enabled))
+		{
+			audio::shuffle_enabled = shuffle_enabled;
+			audio::create_playlist_order();
+			audio::current_song_index = -1;
+
+			if (ini_t* config = ini_load(settings::config_file.c_str()))
+			{
+				ini_set(config, "config", "shuffle_enabled", audio::shuffle_enabled ? "true" : "false");
+				ini_save(config, settings::config_file.c_str());
+				ini_free(config);
+			}
+		}
+
+		bool repeat_enabled = audio::repeat_enabled;
+		if (ImGui::Checkbox("Repeat", &repeat_enabled))
+		{
+			audio::repeat_enabled = repeat_enabled;
+
+			if (ini_t* config = ini_load(settings::config_file.c_str()))
+			{
+				ini_set(config, "config", "repeat_enabled", audio::repeat_enabled ? "true" : "false");
+				ini_save(config, settings::config_file.c_str());
+				ini_free(config);
+			}
+		}
+
+		ImGui::Text("Mode: %s", audio::shuffle_enabled ? "Random" : "Sequential");
+     ImGui::Text("Repeat: %s", audio::repeat_enabled ? "All" : "Off");
+		ImGui::Text("Context: %s", audio::current_playlist_context());
+		ImGui::Text("Tracks: %d", audio::current_playlist_track_count());
+
 		ImGui::EndMenu();
 	}
 }

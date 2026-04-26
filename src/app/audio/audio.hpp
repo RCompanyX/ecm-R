@@ -19,7 +19,10 @@ public:
 	static void set_volume(std::int32_t vol_in);
 	static void enumerate_playlist();
 	static void update();
+  static void create_playlist_order();
 	static void shuffle();
+   static const char* current_playlist_context();
+	static int current_playlist_track_count();
 	static void play_next_song();
 	static void pause();
 	static void play();
@@ -29,6 +32,7 @@ public:
 	static std::vector<std::pair<std::string, std::string>> playlist_files;
 	static std::vector<int> playlist_order;
 	static int current_song_index;
+	static std::int32_t playlist_context;
 
 	static std::vector<const char*> mute_detection;
 
@@ -41,6 +45,9 @@ public:
 
 	static std::int32_t volume;
 	static bool stop_music_on_loading_screens;
+	static bool shuffle_enabled;
+	static bool repeat_enabled;
+	static bool playlist_ended;
 
 	static playing_t currently_playing;
 };

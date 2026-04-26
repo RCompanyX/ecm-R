@@ -7,6 +7,61 @@
 #include "hook/hook.hpp"
 #include "defs.hpp"
 
+#include <algorithm>
+#include <numeric>
+#include <random>
+
+namespace
+{
+	enum class playlist_context_t : std::int32_t
+	{
+		all,
+		frontend,
+		ingame
+	};
+
+	playlist_context_t get_playlist_context()
+	{
+        global::state = game_state;
+
+		switch (global::state)
+		{
+       case GameFlowState::LoadingFrontend:
+		case GameFlowState::InFrontend:
+			return playlist_context_t::frontend;
+
+      case GameFlowState::LoadingTrack:
+		case GameFlowState::LoadingRegion:
+		case GameFlowState::Racing:
+      case GameFlowState::UnloadingFrontend:
+			return playlist_context_t::ingame;
+
+		default:
+			return playlist_context_t::all;
+		}
+	}
+
+	bool is_track_valid_for_context(const std::string& track_context, const playlist_context_t playlist_context)
+	{
+		if (track_context == "ALL" || track_context == "N/A")
+		{
+			return true;
+		}
+
+		switch (playlist_context)
+		{
+		case playlist_context_t::frontend:
+			return track_context != "IG";
+
+		case playlist_context_t::ingame:
+			return track_context != "FE";
+
+		default:
+			return true;
+		}
+	}
+}
+
 void audio::init()
 {
 	switch (global::game)
@@ -23,7 +78,7 @@ void audio::init()
 
 	if (HIWORD(BASS_GetVersion()) != BASSVERSION)
 	{
-        global::msg_box("ECM-R BASS", "An incorrect version of BASS.DLL was loaded!");
+      global::msg_box("ECM-R BASS", "An incorrect version of BASS.DLL was loaded!");
 		global::shutdown = true;
 	}
 
@@ -33,7 +88,7 @@ void audio::init()
 	}
 
 	audio::set_volume(audio::volume);
-	audio::shuffle();
+  audio::create_playlist_order();
 	audio::pause();
 	audio::update();
 }
@@ -47,7 +102,7 @@ void audio::update()
 		global::state == GameFlowState::LoadingRegion ||
 		global::state == GameFlowState::LoadingTrack;
 
-   if (audio::stop_music_on_loading_screens && is_loading_state)
+    if (audio::stop_music_on_loading_screens && is_loading_state)
 	{
 		if (audio::playing)
 		{
@@ -71,29 +126,11 @@ void audio::update()
 		audio::play_next_song();
 	}
 
-	//Setup for channel crossfading
-	switch (global::state)
+	if (audio::playlist_order.empty() || audio::current_song_index < 0 || audio::current_song_index > audio::playlist_order.size() - 1)
 	{
-		//Frontend
- case GameFlowState::LoadingFrontend:
-	case GameFlowState::InFrontend:
-		if(audio::playlist_files[audio::playlist_order[audio::current_song_index]].second == "IG")
-		{
-			audio::stop(0);
-			audio::play_next_song();
-		}
-		break;
-
-		//In-game
-	case GameFlowState::UnloadingFrontend:
-	case GameFlowState::Racing:
-		if (audio::playlist_files[audio::playlist_order[audio::current_song_index]].second == "FE")
-		{
-			audio::stop(0);
-			audio::play_next_song();
-		}
-		break;
+		return;
 	}
+
 }
 
 void audio::play_file(const std::string& file, int channel)
@@ -101,6 +138,7 @@ void audio::play_file(const std::string& file, int channel)
 	std::string title = file;
 	logger::rem_path_info(title, audio::playlist_dir);
 	audio::currently_playing.title = title;
+ audio::playlist_ended = false;
 	::play_file(file.c_str(), channel);
 }
 
@@ -117,25 +155,71 @@ void audio::stop(int channel)
 
 void audio::shuffle()
 {
-	if (audio::playlist_files.size() > 0)
+	audio::create_playlist_order();
+}
+
+const char* audio::current_playlist_context()
+{
+	switch (get_playlist_context())
 	{
-		static std::random_device rd;
-		static std::mt19937 mt(rd());
-		static std::uniform_int_distribution<std::int32_t> range(0, audio::playlist_files.size() - 1);
+	case playlist_context_t::frontend:
+		return "Frontend";
 
-		audio::playlist_order.clear();
+	case playlist_context_t::ingame:
+		return "In-game";
 
-		for (int i = 0; i < audio::playlist_files.size(); ++i)
+	default:
+		return "All";
+	}
+}
+
+int audio::current_playlist_track_count()
+{
+	const auto playlist_context = get_playlist_context();
+	int track_count = 0;
+
+	for (const auto& track : audio::playlist_files)
+	{
+		if (is_track_valid_for_context(track.second, playlist_context))
 		{
-			int random_index = range(mt);
-
-			while (std::count(audio::playlist_order.begin(), audio::playlist_order.end(), random_index))
-			{
-				random_index = range(mt);
-			}
-
-			audio::playlist_order.emplace_back(random_index);
+			++track_count;
 		}
+	}
+
+	return track_count;
+}
+
+void audio::create_playlist_order()
+{
+	audio::playlist_order.clear();
+	audio::playlist_ended = false;
+
+	if (audio::playlist_files.empty())
+	{
+		return;
+	}
+
+	const auto playlist_context = get_playlist_context();
+	audio::playlist_context = static_cast<std::int32_t>(playlist_context);
+
+	for (int i = 0; i < audio::playlist_files.size(); ++i)
+	{
+		if (is_track_valid_for_context(audio::playlist_files[i].second, playlist_context))
+		{
+			audio::playlist_order.emplace_back(i);
+		}
+	}
+
+	if (audio::playlist_order.empty())
+	{
+		return;
+	}
+
+	if (audio::shuffle_enabled)
+	{
+        static std::random_device rd;
+		static std::mt19937 mt(rd());
+		std::shuffle(audio::playlist_order.begin(), audio::playlist_order.end(), mt);
 	}
 }
 
@@ -162,12 +246,31 @@ void audio::enumerate_playlist()
 
 void audio::play_next_song()
 {
+    const auto playlist_context = static_cast<std::int32_t>(get_playlist_context());
+	if (audio::playlist_order.empty() || audio::playlist_context != playlist_context)
+	{
+		audio::create_playlist_order();
+		audio::current_song_index = -1;
+	}
+
 	audio::current_song_index++;
+
+ if (audio::playlist_order.empty())
+	{
+		return;
+	}
 
 	//If our playlist has ended
 	if (audio::current_song_index > audio::playlist_order.size() - 1)
 	{
-		audio::shuffle();
+       if (!audio::repeat_enabled)
+		{
+			audio::playlist_ended = true;
+			audio::current_song_index = static_cast<int>(audio::playlist_order.size());
+			return;
+		}
+
+		audio::create_playlist_order();
 		audio::current_song_index = 0;
 	}
 
@@ -180,44 +283,14 @@ void audio::play_next_song()
 			next = audio::playlist_files.size() - 1;
 		}
 
-		switch (global::state)
+        switch (global::state)
 		{
-			//Frontend
-		case GameFlowState::LoadingFrontend:
+      case GameFlowState::LoadingFrontend:
 		case GameFlowState::InFrontend:
-			while(audio::playlist_files[next].second == "IG")
-			{
-				audio::current_song_index++;
-
-				if (audio::current_song_index > audio::playlist_order.size() - 1)
-				{
-					audio::shuffle();
-					audio::current_song_index = 0;
-				}
-
-				next = audio::playlist_order[audio::current_song_index];
-			}
-
-			audio::play_file(audio::playlist_files[next].first, 0);
-			break;
-
-			//In-game
 		case GameFlowState::LoadingTrack:
 		case GameFlowState::LoadingRegion:
 		case GameFlowState::Racing:
-			while (audio::playlist_files[next].second == "FE")
-			{
-				audio::current_song_index++;
-
-				if (audio::current_song_index > audio::playlist_order.size() - 1)
-				{
-					audio::shuffle();
-					audio::current_song_index = 0;
-				}
-
-				next = audio::playlist_order[audio::current_song_index];
-			}
-
+		default:
 			audio::play_file(audio::playlist_files[next].first, 0);
 			break;
 		}
@@ -235,11 +308,15 @@ std::int32_t audio::req;
 std::int32_t audio::chan[2];
 std::int32_t audio::volume = 50;
 bool audio::stop_music_on_loading_screens = true;
+bool audio::shuffle_enabled = true;
+bool audio::repeat_enabled = true;
+bool audio::playlist_ended = false;
 playing_t audio::currently_playing = {"N/A"};
 std::string audio::playlist_name = "Music";
 std::string audio::playlist_dir = "Music";
 std::vector<std::pair<std::string, std::string>> audio::playlist_files;
 std::vector<int> audio::playlist_order;
 int audio::current_song_index = 0;
+std::int32_t audio::playlist_context = -1;
 std::initializer_list<std::string> audio::supported_files { "wav", "mp1", "mp2", "mp3", "ogg", "aif"};
 std::vector<const char*> audio::mute_detection;
