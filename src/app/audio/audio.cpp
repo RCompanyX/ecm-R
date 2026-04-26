@@ -61,6 +61,96 @@ namespace
 			return true;
 		}
 	}
+
+	void play_song_from_playlist_order(const int song_index)
+	{
+		if (song_index < 0 || song_index >= static_cast<int>(audio::playlist_order.size()))
+		{
+			return;
+		}
+
+		int playlist_entry_index = audio::playlist_order[song_index];
+
+		if (playlist_entry_index > static_cast<int>(audio::playlist_files.size()) - 1)
+		{
+			playlist_entry_index = static_cast<int>(audio::playlist_files.size()) - 1;
+		}
+
+		switch (global::state)
+		{
+		case GameFlowState::LoadingFrontend:
+		case GameFlowState::InFrontend:
+		case GameFlowState::LoadingTrack:
+		case GameFlowState::LoadingRegion:
+		case GameFlowState::Racing:
+		default:
+			audio::play_file(audio::playlist_files[playlist_entry_index].first, 0);
+			break;
+		}
+	}
+
+	bool ensure_playlist_order_for_current_context(const int reset_index)
+	{
+		const auto playlist_context = static_cast<std::int32_t>(get_playlist_context());
+		if (audio::playlist_order.empty() || audio::playlist_context != playlist_context)
+		{
+			audio::create_playlist_order();
+			audio::current_song_index = reset_index;
+		}
+
+		return !audio::playlist_order.empty();
+	}
+
+	void move_current_song_index(const int delta)
+	{
+		const int last_song_index = static_cast<int>(audio::playlist_order.size()) - 1;
+		const int next_song_index = audio::current_song_index + delta;
+
+		if (next_song_index > last_song_index)
+		{
+			if (!audio::repeat_enabled)
+			{
+				audio::playlist_ended = true;
+				audio::current_song_index = static_cast<int>(audio::playlist_order.size());
+				return;
+			}
+
+			audio::create_playlist_order();
+			audio::current_song_index = 0;
+			return;
+		}
+
+		if (next_song_index < 0)
+		{
+			audio::current_song_index = audio::repeat_enabled ? last_song_index : 0;
+			return;
+		}
+
+		audio::current_song_index = next_song_index;
+	}
+
+	void play_relative_song(const int delta)
+	{
+		const int reset_index = delta > 0 ? -1 : static_cast<int>(audio::playlist_order.size());
+		if (!ensure_playlist_order_for_current_context(reset_index))
+		{
+			return;
+		}
+
+		if (audio::chan[0] != 0)
+		{
+			audio::stop(0);
+		}
+
+		move_current_song_index(delta);
+
+		if (audio::current_song_index < 0 || audio::current_song_index >= static_cast<int>(audio::playlist_order.size()))
+		{
+			return;
+		}
+
+		play_song_from_playlist_order(audio::current_song_index);
+	}
 }
 
 void audio::init()
@@ -261,55 +351,12 @@ void audio::enumerate_playlist()
 
 void audio::play_next_song()
 {
-    const auto playlist_context = static_cast<std::int32_t>(get_playlist_context());
-	if (audio::playlist_order.empty() || audio::playlist_context != playlist_context)
-	{
-		audio::create_playlist_order();
-		audio::current_song_index = -1;
-	}
+    play_relative_song(1);
+}
 
-	audio::current_song_index++;
-
- if (audio::playlist_order.empty())
-	{
-		return;
-	}
-
-	//If our playlist has ended
-	if (audio::current_song_index > audio::playlist_order.size() - 1)
-	{
-       if (!audio::repeat_enabled)
-		{
-			audio::playlist_ended = true;
-			audio::current_song_index = static_cast<int>(audio::playlist_order.size());
-			return;
-		}
-
-		audio::create_playlist_order();
-		audio::current_song_index = 0;
-	}
-
-	if (audio::playlist_order.size() > 0)
-	{
-		int next = audio::playlist_order[audio::current_song_index];
-
-		if (next > audio::playlist_files.size() - 1)
-		{
-			next = audio::playlist_files.size() - 1;
-		}
-
-        switch (global::state)
-		{
-      case GameFlowState::LoadingFrontend:
-		case GameFlowState::InFrontend:
-		case GameFlowState::LoadingTrack:
-		case GameFlowState::LoadingRegion:
-		case GameFlowState::Racing:
-		default:
-			audio::play_file(audio::playlist_files[next].first, 0);
-			break;
-		}
-	}
+void audio::play_previous_song()
+{
+    play_relative_song(-1);
 }
 
 void audio::set_volume(std::int32_t vol_in)

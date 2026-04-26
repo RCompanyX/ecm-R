@@ -24,6 +24,7 @@ public:
    static const char* current_playlist_context();
 	static int current_playlist_track_count();
 	static void play_next_song();
+    static void play_previous_song();
 	static void pause();
 	static void play();
 
