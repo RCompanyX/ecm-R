@@ -32,7 +32,9 @@ public:
 	static std::string playlist_dir;
 	static std::vector<std::pair<std::string, std::string>> playlist_files;
 	static std::vector<int> playlist_order;
+  static std::vector<int> playback_history;
 	static int current_song_index;
+   static int playback_history_index;
 	static std::int32_t playlist_context;
 
 	static std::vector<const char*> mute_detection;
