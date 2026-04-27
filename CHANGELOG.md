@@ -21,8 +21,6 @@ This changelog currently tracks the tagged releases recorded in this repository.
 - Playback history is automatically cleared when switching to sequential mode to avoid interference with position-based navigation.
 
 ### Documentation
-- Added `docs/releases/v0.5.4-alpha.md` with detailed feature documentation.
-- Updated CHANGELOG.md with v0.5.4-alpha entry including shuffle history behavior.
 - Updated README to include the new `previous_track` key binding and Previous button in the overlay.
 - Removed **Previous Track Control** from Planned Features as it is now implemented.
 
