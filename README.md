@@ -21,7 +21,7 @@ This fork is currently focused on **Need for Speed: Underground 2 (NFSU2)**.
 ## Quick Links
 
 - [Building](BUILDING.md)
-- [Configuration Manual](docs/configuration-manual.md)
+- [Configuration Manual](CONFIGURATION.MD)
 - [Changelog](CHANGELOG.md)
 
 ## Fork Status
@@ -134,7 +134,7 @@ These hotkeys can be changed in `ecm-r.x86.ini`.
 
 ## Configuration
 
-The full configuration reference is available in [docs/configuration-manual.md](docs/configuration-manual.md).
+The full configuration reference is available in [CONFIGURATION.MD](CONFIGURATION.MD).
 
 ## Roadmap
 
