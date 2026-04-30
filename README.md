@@ -133,14 +133,6 @@ ECM-R currently scans the playlist folder for these file types:
 - Allows custom music to continue through loading screens when `stop_music_on_loading_screens` is set to `false`
 - Keeps the original game files untouched while replacing or muting game music through the mod runtime
 
-## Controls
-
-- `F11`: Toggle the in-game overlay by default
-- `F9`: Go back to the previous song by default
-- `F10`: Skip to the next song by default
-
-The Previous action is also available from the overlay. These hotkeys can be changed in `ecm-r.x86.ini`.
-
 ## Configuration
 
 The full configuration reference is available in [CONFIGURATION.MD](CONFIGURATION.MD).
