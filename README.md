@@ -8,14 +8,28 @@
 ECM-R replaces or mutes the in-game music and plays audio files from a user playlist folder.
 It also includes an in-game overlay for basic playback control.
 
-Current behavior in this fork is focused on **NFSU2**.
+This fork is currently focused on **Need for Speed: Underground 2 (NFSU2)**.
+
+## Quick Start
+
+1. Install ECM-R with your preferred mod loader or mod manager.
+2. Place `ecm-r.x86.asi`, `ecm-r.x86.ini` (or let ECM-R create it), and `bass.dll` inside the target `scripts` folder.
+3. Create a `Music` folder next to those runtime files.
+4. Put your supported audio files inside `Music`.
+5. Launch the game and open the overlay with `F11`.
+
+## Quick Links
+
+- [Building](BUILDING.md)
+- [Configuration Manual](docs/configuration-manual.md)
+- [Changelog](CHANGELOG.md)
 
 ## Fork Status
 
-This repository is maintained as a fork.
-If you are looking for the original ECM source, attribution chain, or upstream history, review the upstream repository and the included license file.
+This repository is maintained as a fork of the original ECM project by **BttrDrgn**.
+The current feature set and documentation are maintained around the NFSU2 runtime used by this fork.
 
-Original author of ECM: **BttrDrgn**.
+If you are looking for the original ECM source, attribution chain, or upstream history, review the upstream repository and the included license file.
 
 ## Requirements
 
@@ -28,31 +42,49 @@ Original author of ECM: **BttrDrgn**.
 
 Build instructions for generating the plugin are available in [BUILDING.md](BUILDING.md).
 
+## Runtime Layout
+
+Typical deployment for this fork places the runtime files together inside the game's `scripts` folder:
+
+```text
+Game Folder/
+  scripts/
+    ecm-r.x86.asi
+    ecm-r.x86.ini
+    bass.dll
+    Music/
+      Artist - Song 01.mp3
+      Artist - Song 02.ogg
+```
+
+ECM-R loads the official BASS runtime dynamically, so `bass.dll` must be present next to the ECM-R runtime files.
+
 ## Installation
+
+Before choosing an installation method:
+
+1. Download the official `bass.dll` runtime from https://www.un4seen.com/
+2. Prepare the ECM-R runtime files for your target `scripts` folder:
+   - `ecm-r.x86.asi`
+   - `ecm-r.x86.ini` (optional on first launch)
+   - `bass.dll`
+3. Create a `Music` folder next to those files and place your songs inside it.
 
 ### Option 1: Mr. Modman
 
 If you use [Mr. Modman](https://github.com/VelocityCL/mr.modman):
 
-1. Extract the files from the `scripts` folder into your game's global directory or pack directory.
-2. Make sure `ecm-r.x86.asi` is included.
-3. Download `bass.dll` from the official BASS website: https://www.un4seen.com/
-4. Place `bass.dll` in the same `scripts` folder as ECM-R.
-5. Make sure `ecm-r.x86.ini` is present or allow ECM-R to create it on first launch.
-6. Create a folder named `Music` next to the mod files.
-7. Put your songs inside that folder.
+1. Extract the release `scripts` contents into your game's global directory or pack directory.
+2. Make sure the final deployed `scripts` folder contains `ecm-r.x86.asi`, `ecm-r.x86.ini` (or allow it to be created), and `bass.dll`.
+3. Make sure the `Music` folder is placed in that same runtime location.
 
 ### Option 2: ASI Loader
 
 If your game already uses an ASI loader such as `dinput8.dll`:
 
-1. Extract the release files into the game directory.
-2. Make sure `ecm-r.x86.asi` is present.
-3. Download `bass.dll` from the official BASS website: https://www.un4seen.com/
-4. Place `bass.dll` in the same `scripts` folder as ECM-R.
-5. Make sure `ecm-r.x86.ini` is present or allow ECM-R to create it on first launch.
-6. Create a `Music` folder in the expected mod location.
-7. Put your songs inside that folder.
+1. Extract the release files into the game directory used by your loader.
+2. Make sure the loader's `scripts` folder contains `ecm-r.x86.asi`, `ecm-r.x86.ini` (or allow it to be created), and `bass.dll`.
+3. Create a `Music` folder in that same runtime location and place your songs there.
 
 ## Supported Audio Formats
 
@@ -67,13 +99,30 @@ ECM-R currently scans the playlist folder for these file types:
 
 ## Implemented Functionality
 
+### Playback
+
 - Loads custom music from a configurable playlist folder without replacing the original game files
-- Displays an in-game overlay with playback controls and playlist browsing
 - Supports shuffle and repeat playback modes with persistent configuration
+- Supports previous and next track navigation from both hotkeys and the overlay
 - Supports separate frontend and in-game volume levels
 - Supports per-track routing for frontend-only, in-game-only, or shared playback
-- Can stop custom music during loading screens and resume normal playback flow afterward
+
+### Overlay and Controls
+
+- Displays an in-game overlay with playback controls and playlist browsing
 - Allows configurable hotkeys for opening the overlay and changing tracks
+- Updates the overlay chyron from filenames when track metadata follows the expected naming format
+
+### Configuration and Persistence
+
+- Creates `ecm-r.x86.ini` automatically on first launch
+- Saves runtime changes for shuffle, repeat, and volume settings back to the configuration file
+- Supports configurable playlist location, key bindings, and per-track routing rules
+
+### Game Integration
+
+- Can stop custom music during loading screens and resume normal playback flow afterward
+- Keeps the original game files untouched while replacing or muting game music through the mod runtime
 
 ## Controls
 
@@ -87,23 +136,20 @@ These hotkeys can be changed in `ecm-r.x86.ini`.
 
 The full configuration reference is available in [docs/configuration-manual.md](docs/configuration-manual.md).
 
-## Planned Features
+## Roadmap
 
-The following features are planned for future releases:
+The current roadmap includes:
 
 - **Pause/Resume Control** - Persistent pause state that maintains playback position
 - **Multiple Playlists** - Switch between different music folders dynamically within the game
 - **Advanced Context Filters** - More granular playback rules beyond FE/IG (events, game modes, etc.)
-- **Lip-Sync Synchronization** - Adjust audio synchronization for cutscenes and cinematics
 - **Volume Normalization** - Automatic level equalization across all tracks
-- **Real-Time Audio Format Conversion** - Support for additional audio formats through runtime conversion
+- **Lip-Sync Synchronization** - Adjust audio synchronization for cutscenes and cinematics
 
 ## Notes
 
 - If `bass.dll` is missing or the wrong version is loaded, audio playback will fail.
-- This project loads the official BASS runtime dynamically and requires `bass.dll` at runtime.
-- Download `bass.dll` from the official BASS website: https://www.un4seen.com/
-- Place `bass.dll` in the same `scripts` folder as ECM-R runtime files.
+- `bass.dll` must be the official BASS runtime placed next to the ECM-R runtime files.
 - The current runtime integration has been tested with BASS `v2.4.18.11`.
 - BASS is a third-party library and remains subject to the official BASS license terms.
 - ECM-R does not bundle or redistribute `bass.dll`; users must obtain the official runtime themselves.
