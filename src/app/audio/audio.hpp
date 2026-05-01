@@ -26,20 +26,22 @@ public:
    static std::int32_t current_context_volume();
 	static void apply_current_context_volume();
 	static void play_next_song();
-    static void play_previous_song();
+	static void play_previous_song();
 	static void pause();
 	static void play();
+	static bool should_pause_for_package(const char* package_name);
 
 	static std::string playlist_name;
 	static std::string playlist_dir;
 	static std::vector<std::pair<std::string, std::string>> playlist_files;
 	static std::vector<int> playlist_order;
-  static std::vector<int> playback_history;
+	static std::vector<int> playback_history;
 	static int current_song_index;
-   static int playback_history_index;
+	static int playback_history_index;
 	static std::int32_t playlist_context;
 
-	static std::vector<const char*> mute_detection;
+	static std::vector<std::string> mute_detection;
+	static std::vector<std::string> mute_detection_keywords;
 
 	static std::initializer_list<std::string> supported_files;
 

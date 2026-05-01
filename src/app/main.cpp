@@ -58,18 +58,7 @@ void __declspec(naked) NFSU2_MainLoop()
 static void(* sub_00537980_)(int a2, char* a3, int a4);
 void sub_00537980(int a2, char* a3, int a4)
 {
-	bool found = false;
-	for (const char* package : audio::mute_detection)
-	{
-		if (!strcmp(package, a3))
-		{
-			found = true;
-			break;
-		}
-	}
-
-	//Will be reworked to better match the game eventually
-	if (found)
+	if (audio::should_pause_for_package(a3))
 	{
 		audio::pause();
 	}

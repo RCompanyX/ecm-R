@@ -9,12 +9,22 @@
 #include "defs.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <numeric>
 #include <random>
 
 namespace
 {
-    constexpr int max_playback_history_entries = 50;
+	constexpr int max_playback_history_entries = 50;
+
+	std::string to_lower_copy(std::string value)
+	{
+		std::transform(value.begin(), value.end(), value.begin(), [](unsigned char ch) {
+			return static_cast<char>(std::tolower(ch));
+		});
+
+		return value;
+	}
 
 	std::int32_t clamp_volume(const std::int32_t volume)
 	{
@@ -261,12 +271,14 @@ void audio::init()
 	switch (global::game)
 	{
 	case game_t::NFSU2:
-		//WIP filter detection
-		audio::mute_detection.emplace_back("LS_PSAMovie.fng");
-		audio::mute_detection.emplace_back("LS_THXMovie.fng");
-		audio::mute_detection.emplace_back("LS_EAlogo.fng");
-		audio::mute_detection.emplace_back("LS_BlankMovie.fng");
-		audio::mute_detection.emplace_back("UG_LS_IntroFMV.fng");
+		audio::mute_detection.emplace_back("ls_psamovie.fng");
+		audio::mute_detection.emplace_back("ls_thxmovie.fng");
+		audio::mute_detection.emplace_back("ls_ealogo.fng");
+		audio::mute_detection.emplace_back("ls_blankmovie.fng");
+		audio::mute_detection.emplace_back("ug_ls_introfmv.fng");
+		audio::mute_detection_keywords.emplace_back("comic");
+		audio::mute_detection_keywords.emplace_back("zone_unlock");
+		audio::mute_detection_keywords.emplace_back("new_zone_unlocked");
 		break;
 	}
 
@@ -484,6 +496,34 @@ void audio::pause()
    bass_api::pause();
 }
 
+bool audio::should_pause_for_package(const char* package_name)
+{
+	if (!package_name || package_name[0] == '\0')
+	{
+		return false;
+	}
+
+	const std::string normalized_package_name = to_lower_copy(package_name);
+
+	for (const auto& package : audio::mute_detection)
+	{
+		if (package == normalized_package_name)
+		{
+			return true;
+		}
+	}
+
+	for (const auto& keyword : audio::mute_detection_keywords)
+	{
+		if (normalized_package_name.find(keyword) != std::string::npos)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
 void audio::enumerate_playlist()
 {
 	std::vector<std::string> files = fs::get_all_files(audio::playlist_dir, audio::supported_files);
@@ -534,4 +574,5 @@ int audio::current_song_index = 0;
 int audio::playback_history_index = -1;
 std::int32_t audio::playlist_context = -1;
 std::initializer_list<std::string> audio::supported_files { "wav", "mp1", "mp2", "mp3", "ogg", "aif"};
-std::vector<const char*> audio::mute_detection;
+std::vector<std::string> audio::mute_detection;
+std::vector<std::string> audio::mute_detection_keywords;
