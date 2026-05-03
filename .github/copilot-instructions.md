@@ -17,6 +17,19 @@
 - When touching playback flow, also review the NFSU2-specific hooks and mute triggers in `src/app/main.cpp` and `src/app/hook/hook.hpp`, including the frontend and loading-screen FNG packages used to pause or resume music.
 - Preserve coherence between game state detection, overlay controls, playlist context filtering (`ALL`, `FE`, `IG`), and configuration persistence.
 
+## Task Modes
+
+### Code Tasks
+- Keep gameplay-facing changes aligned with NFSU2 state detection, playback flow, overlay controls, and persisted configuration behavior.
+- For audio or playlist work, inspect the affected game-state transitions before changing logic, then verify that frontend, loading, and in-race behavior remain coherent.
+- Keep compatibility-sensitive runtime names, configuration keys, and deployment expectations stable unless the task explicitly changes them.
+
+### Documentation Tasks
+- Treat `README.md`, `BUILDING.md`, `CHANGELOG.md`, and `docs/releases/*.md` as the main maintained documentation set for this fork.
+- When documenting code changes, keep configuration names, runtime filenames, deployment paths, and BASS runtime requirements exactly aligned with the current implementation.
+- For release notes and changelog entries, document only the changes introduced by the target release and avoid mixing roadmap items, older features, or unmerged work.
+- Prefer updating the smallest relevant documentation surface instead of rewriting multiple documents unnecessarily, but keep cross-file consistency when one change affects setup, runtime behavior, or release messaging.
+
 ## Code Style
 - Prefer a shared helper for playlist navigation with small wrappers like `play_next_song()` and `play_previous_song()`, instead of using boolean flags for direction.
 
@@ -27,6 +40,8 @@
 
 ## Release Documentation
 - For release documentation, only include features introduced in the target release and do not mix in items from previous releases.
+- Keep release documentation focused on user-visible behavior, configuration impact, compatibility notes, and validation relevant to the tagged version.
+- Preserve the ECM-R fork attribution and do not drop references that keep the original ECM/BttrDrgn lineage clear.
 
 ## Project-Specific Rules
 - Migrate the project to manual dynamic loading of `bass.dll` using `LoadLibrary` and `GetProcAddress`.
