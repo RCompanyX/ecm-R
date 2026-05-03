@@ -1,0 +1,93 @@
+name: Idea viability
+description: Ask for a feasibility review of an early-stage idea before it becomes a planned feature.
+title: "[Idea]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for sharing an idea for ECM-R.
+        Use this template when you want a viability review first, before asking for implementation.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched the existing issues and did not find the same idea already discussed.
+          required: true
+        - label: I want a feasibility review and planning outcome, not a bug fix.
+          required: true
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: Idea summary
+      description: Describe the idea in one or two sentences.
+      placeholder: Add separate playlist rules for frontend, loading screens, and races.
+    validations:
+      required: true
+
+  - type: textarea
+    id: user_problem
+    attributes:
+      label: User problem
+      description: What player problem or limitation would this idea solve?
+      placeholder: The same playlist behavior across all game phases makes transitions feel repetitive.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected_outcome
+    attributes:
+      label: Expected outcome
+      description: Describe the intended result if the idea proves viable.
+      placeholder: ECM-R should choose music rules that better match frontend, loading, and in-race contexts.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Primary area
+      options:
+        - Playback
+        - Playlist / shuffle / repeat
+        - Loading screens
+        - Frontend / in-game transitions
+        - Overlay / controls
+        - Configuration
+        - Installation / runtime loading
+        - Build / packaging
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: architecture_touchpoints
+    attributes:
+      label: Suspected touchpoints
+      description: If you know them, mention game states, hooks, configuration keys, overlay flows, or files that may be affected.
+      placeholder: Might affect loading-screen detection, playlist context filtering, overlay status text, and saved config options.
+    validations:
+      required: false
+
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Constraints or risks
+      description: Note compatibility concerns, deployment expectations, or reasons the idea may be difficult.
+      placeholder: Must keep current runtime filenames and avoid breaking existing `ecm-r.x86.ini` behavior.
+    validations:
+      required: false
+
+  - type: textarea
+    id: planning_goal
+    attributes:
+      label: Planning goal
+      description: Explain what you want back from the viability review.
+      placeholder: Confirm whether this is viable, identify the main risks, and outline the implementation plan if approved.
+    validations:
+      required: true

@@ -19,6 +19,14 @@
 
 ## Task Modes
 
+### Agent Routing Model
+- Use a three-role operating model for repository work:
+  - **Viability + planning agent**: assess new ideas, check architectural fit, reject risky or misclassified requests, and produce the implementation plan for approved evolutive work.
+  - **Evolutive agent**: implement approved product improvements, UX changes, configuration changes, and directly related documentation updates.
+  - **Incidents agent**: reproduce reported problems, isolate regressions, apply focused fixes, and validate that frontend, loading-screen, racing, overlay, and configuration flows still behave correctly.
+- Prefer routing by **type of work** instead of by subsystem. In this repository, gameplay state, audio, hooks, overlay, and persistence are tightly coupled, so splitting by module increases handoff cost without improving ownership.
+- Treat early-stage ideas as viability work first. If the request is really a bug report or a ready-to-build feature, reroute it before implementation starts.
+
 ### Code Tasks
 - Keep gameplay-facing changes aligned with NFSU2 state detection, playback flow, overlay controls, and persisted configuration behavior.
 - For audio or playlist work, inspect the affected game-state transitions before changing logic, then verify that frontend, loading, and in-race behavior remain coherent.
@@ -38,6 +46,7 @@
 - Validate changes against the existing Windows build flow described in `BUILDING.md`: run `generate.bat`, use the generated Visual Studio solution, and target `Release | Win-x86` when a build is required.
 - For audio changes, verify both BASS runtime loading behavior and gameplay-facing behavior such as loading screens, frontend transitions, racing playback, and overlay-driven controls.
 - Prefer small, coherent changes that keep NFSU2 event handling, hook addresses, and playback state transitions aligned.
+- For viability work, explicitly call out which game states, audio transitions, hooks, overlay flows, and persisted settings would be affected before handing the work to the evolutive agent.
 
 ## Release Documentation
 - For release documentation, only include features introduced in the target release and do not mix in items from previous releases.

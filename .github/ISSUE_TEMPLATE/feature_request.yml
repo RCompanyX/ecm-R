@@ -9,6 +9,7 @@ body:
       value: |
         Thanks for sharing an idea for ECM-R.
         Please focus on the user problem and expected outcome.
+        If the request still needs a feasibility review or an implementation plan, use the **Idea viability** template instead.
 
   - type: checkboxes
     id: checks
@@ -72,4 +73,3 @@ body:
       description: Include mockups, examples, constraints, or related issues if relevant.
     validations:
       required: false
-
