@@ -11,7 +11,7 @@ on:
 
 jobs:
     copilot-setup-steps:
-        runs-on: windows-latest
+        runs-on: windows-2022
         permissions:
             contents: read
         steps:
@@ -20,6 +20,16 @@ jobs:
               with:
                   submodules: recursive
 
+            - name: Set up MSBuild
+              uses: microsoft/setup-msbuild@v2
+
             - name: Generate Visual Studio solution
               shell: pwsh
               run: .\generate.bat
+
+            - name: Verify generated solution
+              shell: pwsh
+              run: |
+                  if (-not (Test-Path "build/ECM-R.sln")) {
+                      throw "Expected build/ECM-R.sln to exist after running generate.bat."
+                  }
