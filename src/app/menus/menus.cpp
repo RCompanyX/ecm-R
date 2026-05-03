@@ -7,6 +7,7 @@
 #include "settings/settings.hpp"
 #include "audio/player.hpp"
 
+#include <cfloat>
 #include <shellapi.h>
 
 namespace
@@ -107,9 +108,20 @@ void menus::main_menu_bar()
 	{
 		menus::actions();
 		menus::playlist();
-		menus::about();
 
 		ImGui::Text(logger::va("Listening: %s on %s", audio::currently_playing.title.c_str(), audio::playlist_name.c_str()).c_str());
+
+		const ImGuiStyle& style = ImGui::GetStyle();
+		const float about_width = ImGui::CalcTextSize("About").x + style.FramePadding.x * 2.0f;
+     const float available_width = ImGui::GetContentRegionAvail().x;
+		const float spacer_width = available_width - about_width;
+		if (spacer_width > 0.0f)
+		{
+         ImGui::Dummy(ImVec2(spacer_width, 0.0f));
+			ImGui::SameLine();
+		}
+
+		menus::about();
 
 		ImGui::EndMainMenuBar();
 	}
@@ -217,8 +229,10 @@ void menus::actions()
 
 void menus::about()
 {
+  ImGui::SetNextWindowSizeConstraints(ImVec2(220.0f, 0.0f), ImVec2(360.0f, FLT_MAX));
 	if (ImGui::BeginMenu("About"))
 	{
+       ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + 320.0f);
 		ImGui::Text("ECM-R");
 		ImGui::Separator();
 		ImGui::TextWrapped("Fork of the original ECM (External Custom Music) project.");
@@ -226,6 +240,7 @@ void menus::about()
 		ImGui::BulletText("Current fork maintainer: RCompanyX");
 		ImGui::Spacing();
 		ImGui::TextWrapped("Report bugs, request features, or share ideas through GitHub Issues.");
+		ImGui::PopTextWrapPos();
 
 		if (ImGui::Button("Repository"))
 		{
