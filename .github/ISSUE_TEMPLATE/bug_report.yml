@@ -63,6 +63,7 @@ body:
     attributes:
       label: ECM-R version
       description: Select the version you are using, or choose Other if unsure.
+      # Maintainers: update this list when a new release changes the supported reported versions.
       options:
         - v0.5.5-alpha
         - v0.5.4-alpha
@@ -114,4 +115,3 @@ body:
       render: shell
     validations:
       required: false
-

@@ -27,6 +27,10 @@ ECM-R supports `frontend_volume` and `ingame_volume` in addition to the legacy `
 - [Configuration Manual](CONFIGURATION.MD)
 - [Changelog](CHANGELOG.md)
 
+## Repository Maintenance
+
+- When publishing a new release, review the files under `.github/ISSUE_TEMPLATE/` and update them if the supported versions, reporting fields, or guidance have changed.
+
 ## Fork Status
 
 This repository is maintained as a fork of the original ECM project by **BttrDrgn**.
