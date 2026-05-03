@@ -1,0 +1,117 @@
+name: Bug report
+description: Report a problem, regression, or unexpected behavior in ECM-R.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve ECM-R.
+        Please provide enough detail for us to reproduce the issue in Need for Speed: Underground 2.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched the existing issues and did not find a matching report.
+          required: true
+        - label: I am reporting a problem with the current ECM-R behavior, not asking for a new feature.
+          required: true
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Issue summary
+      description: Describe the problem in one or two sentences.
+      placeholder: ECM-R stops playback after leaving the loading screen.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: List the exact steps needed to reproduce the issue.
+      placeholder: |
+        1. Launch the game with ECM-R installed
+        2. Start a race
+        3. Return to the frontend
+        4. Observe that music does not resume
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      placeholder: Music should resume after returning to the frontend.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      placeholder: Music stays stopped until the game is restarted.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: version
+    attributes:
+      label: ECM-R version
+      description: Select the version you are using, or choose Other if unsure.
+      options:
+        - v0.5.5-alpha
+        - v0.5.4-alpha
+        - v0.5.3-alpha
+        - v0.5.2-alpha
+        - v0.5.1-alpha
+        - v0.5.0-alpha
+        - Other / custom build
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      options:
+        - Playback
+        - Playlist / shuffle / repeat
+        - Loading screens
+        - Frontend / in-game transitions
+        - Overlay / controls
+        - Configuration
+        - Installation / runtime loading
+        - Build / packaging
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment details
+      description: Share your game version, loader/mod setup, and anything else relevant.
+      placeholder: |
+        - Game: Need for Speed: Underground 2
+        - OS: Windows 10/11
+        - Loader or scripts folder setup:
+        - ECM-R files used:
+        - bass.dll version, if known:
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Logs, screenshots, or additional context
+      description: Paste any useful output or add links/screenshots if available.
+      render: shell
+    validations:
+      required: false
+

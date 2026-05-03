@@ -1,0 +1,75 @@
+name: Feature request
+description: Suggest a user-facing improvement or new capability for ECM-R.
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for sharing an idea for ECM-R.
+        Please focus on the user problem and expected outcome.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched the existing issues and did not find the same request already open.
+          required: true
+        - label: This is a request for improvement, not a bug report.
+          required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: User problem
+      description: What is difficult, missing, or frustrating today?
+      placeholder: I want to use different playlists depending on where I am in the game.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed improvement
+      description: Describe the behavior or capability you would like to have.
+      placeholder: Add support for multiple playlists that can be selected by gameplay context.
+    validations:
+      required: true
+
+  - type: textarea
+    id: value
+    attributes:
+      label: Expected benefit
+      description: Explain why this would be useful for players.
+      placeholder: This would make the music feel more dynamic and better aligned with game flow.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Related area
+      options:
+        - Playback
+        - Playlist / shuffle / repeat
+        - Loading screens
+        - Frontend / in-game transitions
+        - Overlay / controls
+        - Configuration
+        - Installation / runtime loading
+        - Build / packaging
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Additional context
+      description: Include mockups, examples, constraints, or related issues if relevant.
+    validations:
+      required: false
+
