@@ -4,6 +4,40 @@ All notable changes to ECM-R are documented in this file.
 
 This changelog currently tracks the tagged releases recorded in this repository.
 
+## [v0.5.6-alpha] - 2026-05-03
+
+### Added
+- Added manual Pause/Resume playback control in the overlay.
+- Added configurable `pause_track` key binding with default `F8`.
+- Added a playback state indicator in the main overlay bar so the current `Paused` or `Playing` state is visible at a glance.
+- Added an About menu in the overlay with fork attribution plus repository and issue tracker links.
+
+### Changed
+- Manual pause now persists across frontend and in-game context changes until the user resumes playback.
+- Resuming playback now reuses the paused track only when it is still valid for the current playlist context (`ALL`, `FE`, `IG`).
+- If the paused track is no longer valid after a context change, resume continues with the next valid track using the current shuffle and repeat settings.
+- Pausing playback now hides the in-game chyron notification, and resuming playback shows it again for the active track.
+
+### Documentation
+- Updated the README to document pause/resume controls, the new `pause_track` hotkey, overlay status display, and the About menu.
+- Updated the configuration manual to document the new `pause_track` entry and manual pause behavior.
+
+## [v0.5.5-alpha] - 2026-04-28
+
+### Added
+- Added separate `frontend_volume` and `ingame_volume` settings for context-based playback volume control.
+- Added context-aware volume handling that automatically switches between frontend and in-game playback states.
+- Added overlay volume controls that prioritize the active context and keep the secondary context available.
+
+### Changed
+- Volume is now applied per playback channel using `BASS_ATTRIB_VOL` instead of the previous global stream volume path.
+- Existing configurations are automatically migrated to include `frontend_volume` and `ingame_volume`, using legacy `volume` as the fallback source.
+- Volume is reapplied when a new song starts, when the game context changes, and when the user adjusts volume from the overlay.
+
+### Documentation
+- Updated the README and configuration guidance to document context-based volume control.
+- Removed **Context-Based Volume Control** from planned features because it is now implemented.
+
 ## [v0.5.4-alpha] - 2026-04-27
 
 ### Added
@@ -83,3 +117,4 @@ This changelog currently tracks the tagged releases recorded in this repository.
 [v0.5.2-alpha]: https://github.com/RCompanyX/ecm/releases/tag/v0.5.2-alpha
 [v0.5.3-alpha]: https://github.com/RCompanyX/ecm/releases/tag/v0.5.3-alpha
 [v0.5.4-alpha]: https://github.com/RCompanyX/ecm/releases/tag/v0.5.4-alpha
+[v0.5.5-alpha]: https://github.com/RCompanyX/ecm/releases/tag/v0.5.5-alpha

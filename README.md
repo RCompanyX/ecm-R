@@ -114,6 +114,7 @@ ECM-R currently scans the playlist folder for these file types:
 
 - Loads custom music from a configurable playlist folder without replacing the original game files
 - Supports shuffle and repeat playback modes with persistent configuration
+- Supports manual pause and resume from both a hotkey and the overlay
 - Supports previous and next track navigation from both hotkeys and the overlay
 - Supports separate frontend and in-game volume levels, with legacy `volume` compatibility for older configurations
 - Plays valid tracks in discovered order when shuffle is disabled
@@ -124,9 +125,10 @@ ECM-R currently scans the playlist folder for these file types:
 
 - Displays an in-game overlay with playback controls and playlist browsing
 - Allows runtime toggles for shuffle and repeat directly from the overlay
-- Includes both Previous and Next track controls in the overlay and supports configurable hotkeys for opening the overlay and changing tracks
+- Includes Pause/Resume, Previous, and Next controls in the overlay and supports configurable hotkeys for opening the overlay and changing tracks
 - Uses real playback history for previous-track navigation while shuffle is enabled
 - Updates the overlay chyron from filenames when track metadata follows the expected naming format
+- Includes an About menu with repository and issue tracker links
 
 ### Configuration and Persistence
 
@@ -145,13 +147,12 @@ ECM-R currently scans the playlist folder for these file types:
 
 The full configuration reference is available in [CONFIGURATION.MD](CONFIGURATION.MD).
 
-Key supported settings include `frontend_volume`, `ingame_volume`, `shuffle_enabled`, `repeat_enabled`, `stop_music_on_loading_screens`, and `previous_track`.
+Key supported settings include `frontend_volume`, `ingame_volume`, `shuffle_enabled`, `repeat_enabled`, `stop_music_on_loading_screens`, `pause_track`, and `previous_track`.
 
 ## Roadmap
 
 The current roadmap includes:
 
-- **Pause/Resume Control** - Persistent pause state that maintains playback position
 - **Multiple Playlists** - Switch between different music folders dynamically within the game
 - **Advanced Context Filters** - More granular playback rules beyond FE/IG (events, game modes, etc.)
 - **Volume Normalization** - Automatic level equalization across all tracks

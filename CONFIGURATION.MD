@@ -21,6 +21,7 @@ stop_music_on_loading_screens = true
 
 [keys]
 toggle_overlay = F11
+pause_track = F8
 previous_track = F9
 skip_track = F10
 
@@ -121,6 +122,13 @@ The `[config]` section accepts these values:
 - Key used to go back to the previous song.
 - Default value: `F9`.
 
+### `pause_track`
+
+- Key used to pause or resume ECM-R playback manually.
+- Default value: `F8`.
+- While pause is active, ECM-R keeps the pause state until the user resumes playback.
+- If the game context changes while paused, ECM-R resumes the same track only if it is still valid for the new context. Otherwise, it continues with the next valid track for the current context.
+
 ### `skip_track`
 
 - Key used to jump to the next song.
@@ -153,5 +161,7 @@ Invalid or missing values fall back to `ALL`.
 ## Behavior Notes
 
 - Changes made from the overlay to shuffle, repeat, or volume settings are saved back to `ecm-r.x86.ini` automatically.
+- Manual pause state is not persisted across game restarts.
+- While manual pause is active, the in-game chyron is hidden and is shown again when playback resumes.
 - If a filename follows the format `Artist - Title.ext`, the overlay chyron uses that information when possible.
 - Supported playlist formats are `.wav`, `.mp1`, `.mp2`, `.mp3`, `.ogg`, and `.aif`.

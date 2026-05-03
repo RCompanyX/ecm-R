@@ -36,7 +36,7 @@
 ### Documentation Tasks
 - Treat `README.md`, `BUILDING.md`, `CHANGELOG.md`, and `docs/releases/*.md` as the main maintained documentation set for this fork.
 - When documenting code changes, keep configuration names, runtime filenames, deployment paths, and BASS runtime requirements exactly aligned with the current implementation.
-- For release notes and changelog entries, document only the changes introduced by the target release and avoid mixing roadmap items, older features, or unmerged work.
+- For release notes and changelog entries, document only the changes introduced by the target release and avoid mixing roadmap items, older features, or unmerged work. Ensure changelog entries are aligned with the published GitHub release notes and follow the existing changelog section pattern.
 - Prefer updating the smallest relevant documentation surface instead of rewriting multiple documents unnecessarily, but keep cross-file consistency when one change affects setup, runtime behavior, or release messaging.
 - When publishing a new release, review `.github/ISSUE_TEMPLATE/` and update the templates if supported versions, reporting fields, or reporting guidance have changed.
 
