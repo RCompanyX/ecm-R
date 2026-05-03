@@ -16,6 +16,7 @@
 - When evaluating changes, always use the game flow states defined in `src/app/defs.hpp` as the source of truth and assess how each affected state changes playlist context, pause/resume behavior, and loading-screen handling.
 - When touching playback flow, also review the NFSU2-specific hooks and mute triggers in `src/app/main.cpp` and `src/app/hook/hook.hpp`, including the frontend and loading-screen FNG packages used to pause or resume music.
 - Preserve coherence between game state detection, overlay controls, playlist context filtering (`ALL`, `FE`, `IG`), and configuration persistence.
+- When pausing music, ensure that the in-game notification is fully hidden rather than shown with empty text.
 
 ## Task Modes
 

@@ -110,6 +110,8 @@ void menus::main_menu_bar()
 		menus::playlist();
 
 		ImGui::Text(logger::va("Listening: %s on %s", audio::currently_playing.title.c_str(), audio::playlist_name.c_str()).c_str());
+		ImGui::SameLine();
+		ImGui::Text("[%s]", audio::manual_paused ? "Paused" : "Playing");
 
 		const ImGuiStyle& style = ImGui::GetStyle();
 		const float about_width = ImGui::CalcTextSize("About").x + style.FramePadding.x * 2.0f;
@@ -169,6 +171,13 @@ void menus::actions()
 			draw_volume_slider("In-game Volume", audio::ingame_volume, "ingame_volume");
 		}
 
+		if (ImGui::Button(audio::manual_paused ? "Resume" : "Pause"))
+		{
+			audio::toggle_manual_pause();
+		}
+
+		ImGui::SameLine();
+
         if (ImGui::Button("Previous"))
 		{
 			audio::play_previous_song();
@@ -219,6 +228,7 @@ void menus::actions()
 
 		ImGui::Text("Mode: %s", audio::shuffle_enabled ? "Random" : "Sequential");
      ImGui::Text("Repeat: %s", audio::repeat_enabled ? "All" : "Off");
+      ImGui::Text("Manual Pause: %s", audio::manual_paused ? "On" : "Off");
 		ImGui::Text("Context: %s", audio::current_playlist_context());
 		ImGui::Text("Active Volume: %d", audio::current_context_volume());
 		ImGui::Text("Tracks: %d", audio::current_playlist_track_count());

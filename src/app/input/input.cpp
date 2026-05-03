@@ -7,6 +7,7 @@
 
 WNDPROC o_wndproc;
 bool toggle_once = false;
+bool pause_once = false;
 bool skip_once = false;
 bool previous_once = false;
 std::unordered_map<input::callback_type, std::vector<input::callback>> input::callbacks_;
@@ -29,6 +30,11 @@ namespace
 	void skip_to_previous_track()
 	{
 		audio::play_previous_song();
+	}
+
+	void toggle_manual_pause()
+	{
+		audio::toggle_manual_pause();
 	}
 }
 
@@ -139,6 +145,12 @@ void input::init_overlay()
             toggle_once = true;
 		}
 
+		if (key == input::pause_track_key && !pause_once)
+		{
+			toggle_manual_pause();
+			pause_once = true;
+		}
+
         if (key == input::skip_track_key && !skip_once)
 		{
          skip_to_next_track();
@@ -161,6 +173,11 @@ void input::init_overlay()
            toggle_once = false;
 		}
 
+		if (key == input::pause_track_key && pause_once)
+		{
+			pause_once = false;
+		}
+
      if (key == input::skip_track_key && skip_once)
 		{
 			skip_once = false;
@@ -178,6 +195,17 @@ void input::init_overlay()
 
 void input::update()
 {
+ const bool pause_down = (GetAsyncKeyState(input::pause_track_key) & 0x8000) != 0;
+	if (pause_down && !pause_once)
+	{
+		toggle_manual_pause();
+		pause_once = true;
+	}
+	else if (!pause_down && pause_once)
+	{
+		pause_once = false;
+	}
+
 	const bool skip_down = (GetAsyncKeyState(input::skip_track_key) & 0x8000) != 0;
 	if (skip_down && !skip_once)
 	{
@@ -213,5 +241,6 @@ bool input::is_key_down(std::uint32_t key)
 }
 
 std::uint32_t input::toggle_overlay_key = VK_F11;
+std::uint32_t input::pause_track_key = VK_F8;
 std::uint32_t input::skip_track_key = VK_F10;
 std::uint32_t input::previous_track_key = VK_F9;

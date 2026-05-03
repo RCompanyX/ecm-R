@@ -69,6 +69,49 @@ namespace
 		}
 	}
 
+	bool is_loading_state()
+	{
+		global::state = game_state;
+
+		return global::state == GameFlowState::LoadingFrontend ||
+			global::state == GameFlowState::LoadingRegion ||
+			global::state == GameFlowState::LoadingTrack;
+	}
+
+	int current_playlist_entry_index()
+	{
+		if (audio::playlist_order.empty() || audio::current_song_index < 0 || audio::current_song_index >= static_cast<int>(audio::playlist_order.size()))
+		{
+			return -1;
+		}
+
+		return audio::playlist_order[audio::current_song_index];
+	}
+
+	void sync_pause_state()
+	{
+		audio::paused = audio::manual_paused || audio::game_paused;
+
+		if (audio::chan[0] == 0)
+		{
+			return;
+		}
+
+		if (audio::paused)
+		{
+			bass_api::pause();
+           hook::HideChyron();
+		}
+		else
+		{
+			bass_api::start();
+           if (!audio::currently_playing.title.empty() && audio::currently_playing.title != "N/A")
+			{
+				hook::SummonChyron(audio::currently_playing.title.c_str(), audio::currently_playing.artist.c_str(), audio::currently_playing.where.c_str());
+			}
+		}
+	}
+
 	void clear_playback_history()
 	{
 		audio::playback_history.clear();
@@ -125,6 +168,7 @@ namespace
 		case GameFlowState::Racing:
 		default:
 			audio::play_file(audio::playlist_files[playlist_entry_index].first, 0);
+          sync_pause_state();
 			break;
 		}
 	}
@@ -304,14 +348,9 @@ void audio::update()
 {
 	global::state = game_state;
 
-	const bool is_loading_state =
-		global::state == GameFlowState::LoadingFrontend ||
-		global::state == GameFlowState::LoadingRegion ||
-		global::state == GameFlowState::LoadingTrack;
-
-    if (audio::stop_music_on_loading_screens && is_loading_state)
+   if (audio::stop_music_on_loading_screens && is_loading_state())
 	{
-		if (audio::playing)
+     if (audio::chan[0] != 0 || audio::playing)
 		{
 			audio::stop(0);
 		}
@@ -353,7 +392,7 @@ void audio::play_file(const std::string& file, int channel)
 
 void audio::stop(int channel)
 {
-	audio::paused = false;
+  audio::paused = audio::manual_paused || audio::game_paused;
 	audio::playing = false;
 
   bass_api::stream_free(audio::chan[channel]);
@@ -361,6 +400,8 @@ void audio::stop(int channel)
 	audio::applied_volume = -1;
 
 	audio::currently_playing.title = "N/A";
+   audio::currently_playing.artist = "N/A";
+	audio::currently_playing.where = "N/A";
 }
 
 void audio::shuffle()
@@ -474,14 +515,58 @@ void audio::create_playlist_order()
 
 void audio::play()
 {
-	audio::paused = false;
-   bass_api::start();
+  audio::game_paused = false;
+
+	if (!audio::can_resume_current_song())
+	{
+		audio::stop(0);
+	}
+
+	sync_pause_state();
+
+	if (!audio::paused && !audio::playing && !is_loading_state())
+	{
+		audio::play_next_song();
+	}
 }
 
 void audio::pause()
 {
-	audio::paused = true;
-   bass_api::pause();
+   audio::game_paused = true;
+	sync_pause_state();
+}
+
+void audio::toggle_manual_pause()
+{
+	audio::manual_paused = !audio::manual_paused;
+
+	if (!audio::manual_paused && !audio::can_resume_current_song())
+	{
+		audio::stop(0);
+	}
+
+	sync_pause_state();
+
+	if (!audio::paused && !audio::playing && !is_loading_state())
+	{
+		audio::play_next_song();
+	}
+}
+
+bool audio::can_resume_current_song()
+{
+	if (audio::chan[0] == 0)
+	{
+		return false;
+	}
+
+	const int playlist_entry_index = current_playlist_entry_index();
+	if (playlist_entry_index < 0 || playlist_entry_index >= static_cast<int>(audio::playlist_files.size()))
+	{
+		return false;
+	}
+
+	return is_track_valid_for_context(audio::playlist_files[playlist_entry_index].second, get_playlist_context());
 }
 
 void audio::enumerate_playlist()
@@ -513,6 +598,8 @@ void audio::set_volume(std::int32_t vol_in)
 }
 
 bool audio::paused = false;
+bool audio::manual_paused = false;
+bool audio::game_paused = false;
 bool audio::playing = false;
 std::int32_t audio::req;
 std::int32_t audio::chan[2];
@@ -524,7 +611,7 @@ bool audio::stop_music_on_loading_screens = true;
 bool audio::shuffle_enabled = true;
 bool audio::repeat_enabled = true;
 bool audio::playlist_ended = false;
-playing_t audio::currently_playing = {"N/A"};
+playing_t audio::currently_playing = {"N/A", "N/A", "N/A"};
 std::string audio::playlist_name = "Music";
 std::string audio::playlist_dir = "Music";
 std::vector<std::pair<std::string, std::string>> audio::playlist_files;

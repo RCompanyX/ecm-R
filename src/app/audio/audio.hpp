@@ -7,7 +7,7 @@ using namespace std::literals;
 
 struct playing_t
 {
-	std::string title, where;
+   std::string title, artist, where;
 };
 
 class audio
@@ -26,7 +26,9 @@ public:
    static std::int32_t current_context_volume();
 	static void apply_current_context_volume();
 	static void play_next_song();
-    static void play_previous_song();
+   static void play_previous_song();
+	static void toggle_manual_pause();
+	static bool can_resume_current_song();
 	static void pause();
 	static void play();
 
@@ -44,6 +46,8 @@ public:
 	static std::initializer_list<std::string> supported_files;
 
 	static bool paused;
+    static bool manual_paused;
+	static bool game_paused;
 	static bool playing;
 	static std::int32_t req;
 	static std::int32_t chan[2];

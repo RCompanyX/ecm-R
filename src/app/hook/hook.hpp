@@ -7,19 +7,32 @@
 class hook
 {
 public:
+  static const char* CurrentChyronPackage()
+	{
+		switch (global::game)
+		{
+		case game_t::NFSU2:
+			if (*(int*)(0x008654A4) != 3)
+			{
+				return "Chyron_IG.fng";
+			}
+
+			return "Chyron_FE.fng";
+		default:
+			return nullptr;
+		}
+	}
+
 	static void SummonChyron(const char* title, const char* artist, const char* album)
 	{
 		switch (global::game)
 		{
 		case game_t::NFSU2:
-			char* v3; // esi
 			int v4; // eax
-
-			v3 = "Chyron_FE.fng";
-
-			if (*(int*)(0x008654A4) != 3)
+			const auto v3 = const_cast<char*>(CurrentChyronPackage());
+			if (!v3)
 			{
-				v3 = "Chyron_IG.fng";
+				break;
 			}
 
 			if (!((bool(*)(char*))0x0052CF60)(v3))
@@ -33,6 +46,28 @@ public:
 				reinterpret_cast<void(__thiscall*)(int, const char*, const char*, const char*)>(0x004AC880)(v4, title, artist, album);
 			}
 			break;
+		}
+	}
+
+	static void HideChyron()
+	{
+		switch (global::game)
+		{
+		case game_t::NFSU2:
+		{
+			constexpr auto remove_fng_from_ui_object = 0x005379A0;
+			const auto remove_package = [remove_fng_from_ui_object](char* package)
+			{
+				if (((bool(*)(char*))0x0052CF60)(package))
+				{
+					((void(__cdecl*)(char*))remove_fng_from_ui_object)(package);
+				}
+			};
+
+			remove_package(const_cast<char*>("Chyron_FE.fng"));
+			remove_package(const_cast<char*>("Chyron_IG.fng"));
+			break;
+		}
 		}
 	}
 

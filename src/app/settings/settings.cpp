@@ -191,7 +191,7 @@ namespace
 		}
 	}
 
-    std::string build_config_text(const std::string& playlist, const int volume, const int frontend_volume, const int ingame_volume, const std::string& toggle_overlay, const std::string& skip_track, const std::string& previous_track, const bool stop_music_on_loading_screens, const bool shuffle_enabled, const bool repeat_enabled)
+  std::string build_config_text(const std::string& playlist, const int volume, const int frontend_volume, const int ingame_volume, const std::string& toggle_overlay, const std::string& pause_track, const std::string& skip_track, const std::string& previous_track, const bool stop_music_on_loading_screens, const bool shuffle_enabled, const bool repeat_enabled)
 	{
 		std::ostringstream output;
 		output << "[core]\n";
@@ -206,6 +206,7 @@ namespace
 		output << build_stop_music_on_loading_screens_line(stop_music_on_loading_screens) << "\n\n";
 		output << "[keys]\n";
 		output << "toggle_overlay = " << toggle_overlay << "\n";
+      output << "pause_track = " << pause_track << "\n";
       output << "previous_track = " << previous_track << "\n";
 		output << "skip_track = " << skip_track << "\n\n";
 		output << "[trax]\n";
@@ -245,12 +246,14 @@ void settings::update()
 
      const bool version_changed = std::strcmp(safe_ini_get(config, "core", "version", ""), VERSION) != 0;
 		const std::string toggle_overlay = safe_ini_get(config, "keys", "toggle_overlay", "F11");
+       const std::string pause_track = safe_ini_get(config, "keys", "pause_track", "F8");
         const std::string skip_track = safe_ini_get(config, "keys", "skip_track", "F10");
        const std::string previous_track = safe_ini_get(config, "keys", "previous_track", "F9");
        const std::string legacy_volume = safe_ini_get(config, "core", "volume", "100");
 		const bool missing_stop_music_on_loading_screens = ini_get(config, "config", "stop_music_on_loading_screens") == nullptr;
 		const bool missing_shuffle_enabled = ini_get(config, "config", "shuffle_enabled") == nullptr;
 		const bool missing_repeat_enabled = ini_get(config, "config", "repeat_enabled") == nullptr;
+       const bool missing_pause_track = ini_get(config, "keys", "pause_track") == nullptr;
 		const bool missing_previous_track = ini_get(config, "keys", "previous_track") == nullptr;
 		const bool missing_frontend_volume = ini_get(config, "core", "frontend_volume") == nullptr;
 		const bool missing_ingame_volume = ini_get(config, "core", "ingame_volume") == nullptr;
@@ -262,6 +265,7 @@ void settings::update()
 		audio::repeat_enabled = settings::get_boolean(safe_ini_get(config, "config", "repeat_enabled", "true"));
 		audio::stop_music_on_loading_screens = settings::get_boolean(safe_ini_get(config, "config", "stop_music_on_loading_screens", "true"));
 		input::toggle_overlay_key = input::key_from_string(toggle_overlay.c_str(), VK_F11);
+     input::pause_track_key = input::key_from_string(pause_track.c_str(), VK_F8);
 		input::skip_track_key = input::key_from_string(skip_track.c_str(), VK_F10);
 		input::previous_track_key = input::key_from_string(previous_track.c_str(), VK_F9);
 
@@ -278,14 +282,15 @@ void settings::update()
 			audio::playlist_files[i].second = normalize_trax_value(res);
 		}
 
-       if (version_changed || missing_stop_music_on_loading_screens || missing_shuffle_enabled || missing_repeat_enabled || missing_previous_track || missing_frontend_volume || missing_ingame_volume)
+     if (version_changed || missing_stop_music_on_loading_screens || missing_shuffle_enabled || missing_repeat_enabled || missing_pause_track || missing_previous_track || missing_frontend_volume || missing_ingame_volume)
 		{
-           fs::write(settings::config_file, build_config_text(audio::playlist_name, audio::volume, audio::frontend_volume, audio::ingame_volume, toggle_overlay, skip_track, previous_track, audio::stop_music_on_loading_screens, audio::shuffle_enabled, audio::repeat_enabled), false);
+          fs::write(settings::config_file, build_config_text(audio::playlist_name, audio::volume, audio::frontend_volume, audio::ingame_volume, toggle_overlay, pause_track, skip_track, previous_track, audio::stop_music_on_loading_screens, audio::shuffle_enabled, audio::repeat_enabled), false);
 		}
 	}
 	else if (!fs::exists(settings::config_file))
 	{
 		input::toggle_overlay_key = VK_F11;
+     input::pause_track_key = VK_F8;
 		input::skip_track_key = VK_F10;
 		input::previous_track_key = VK_F9;
 
@@ -305,7 +310,7 @@ void settings::update()
         audio::shuffle_enabled = true;
 		audio::repeat_enabled = true;
 		audio::stop_music_on_loading_screens = true;
-     fs::write(settings::config_file, build_config_text(audio::playlist_name, audio::volume, audio::frontend_volume, audio::ingame_volume, "F11", "F10", "F9", audio::stop_music_on_loading_screens, audio::shuffle_enabled, audio::repeat_enabled), false);
+        fs::write(settings::config_file, build_config_text(audio::playlist_name, audio::volume, audio::frontend_volume, audio::ingame_volume, "F11", "F8", "F10", "F9", audio::stop_music_on_loading_screens, audio::shuffle_enabled, audio::repeat_enabled), false);
 		return;
 	}
 
