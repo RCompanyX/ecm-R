@@ -5,7 +5,7 @@
 - Project documentation and written project content should be in English.
 - Repository instruction files should be written in English.
 - User-facing documentation, release notes, and changelog entries should be written in English.
-- Treat the Copilot agent for this repository as a specialist for analysis, code generation, and validation of ECM-R changes.
+- Treat the Copilot agent for this repository as a specialist for analysis, code generation, and validation of ECM-R changes, with special attention to game-state transitions, audio integration, hook safety, configuration persistence, and regression validation.
 - Keep fork attribution to the original ECM project and its original author, BttrDrgn.
 - Do not remove or rewrite the original license attribution.
 - Preserve compatibility-sensitive runtime filenames unless a task explicitly requires changing them.
@@ -13,7 +13,7 @@
 
 ## Agent Focus
 - Assume this fork targets **Need for Speed: Underground 2 (NFSU2)** first, with the current runtime centered on the 32-bit game integration.
-- When evaluating changes, always consider how they affect the game flow states in `src/app/defs.hpp`: `LoadingFrontend`, `UnloadingFrontend`, `InFrontend`, `LoadingRegion`, `LoadingTrack`, `Racing`, `UnloadingTrack`, and `UnloadingRegion`.
+- When evaluating changes, always use the game flow states defined in `src/app/defs.hpp` as the source of truth and assess how each affected state changes playlist context, pause/resume behavior, and loading-screen handling.
 - When touching playback flow, also review the NFSU2-specific hooks and mute triggers in `src/app/main.cpp` and `src/app/hook/hook.hpp`, including the frontend and loading-screen FNG packages used to pause or resume music.
 - Preserve coherence between game state detection, overlay controls, playlist context filtering (`ALL`, `FE`, `IG`), and configuration persistence.
 
