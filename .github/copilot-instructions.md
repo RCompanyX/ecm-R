@@ -29,6 +29,7 @@
 - When documenting code changes, keep configuration names, runtime filenames, deployment paths, and BASS runtime requirements exactly aligned with the current implementation.
 - For release notes and changelog entries, document only the changes introduced by the target release and avoid mixing roadmap items, older features, or unmerged work.
 - Prefer updating the smallest relevant documentation surface instead of rewriting multiple documents unnecessarily, but keep cross-file consistency when one change affects setup, runtime behavior, or release messaging.
+- When publishing a new release, review `.github/ISSUE_TEMPLATE/` and update the templates if supported versions, reporting fields, or reporting guidance have changed.
 
 ## Code Style
 - Prefer a shared helper for playlist navigation with small wrappers like `play_next_song()` and `play_previous_song()`, instead of using boolean flags for direction.
