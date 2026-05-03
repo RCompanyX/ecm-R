@@ -7,7 +7,23 @@
 #include "settings/settings.hpp"
 #include "audio/player.hpp"
 
+#include <cfloat>
 #include <shellapi.h>
+
+namespace
+{
+	constexpr auto kRepositoryUrl = "https://github.com/RCompanyX/ecm-R";
+	constexpr auto kIssuesUrl = "https://github.com/RCompanyX/ecm-R/issues";
+
+	void open_external_link(const char* url)
+	{
+		const auto result = reinterpret_cast<INT_PTR>(ShellExecuteA(nullptr, "open", url, nullptr, nullptr, SW_SHOWNORMAL));
+		if (result <= 32)
+		{
+			global::msg_box("ECM-R", std::string("Failed to open link:\n") + url);
+		}
+	}
+}
 
 void menus::init()
 {
@@ -94,6 +110,18 @@ void menus::main_menu_bar()
 		menus::playlist();
 
 		ImGui::Text(logger::va("Listening: %s on %s", audio::currently_playing.title.c_str(), audio::playlist_name.c_str()).c_str());
+
+		const ImGuiStyle& style = ImGui::GetStyle();
+		const float about_width = ImGui::CalcTextSize("About").x + style.FramePadding.x * 2.0f;
+     const float available_width = ImGui::GetContentRegionAvail().x;
+		const float spacer_width = available_width - about_width;
+		if (spacer_width > 0.0f)
+		{
+         ImGui::Dummy(ImVec2(spacer_width, 0.0f));
+			ImGui::SameLine();
+		}
+
+		menus::about();
 
 		ImGui::EndMainMenuBar();
 	}
@@ -194,6 +222,37 @@ void menus::actions()
 		ImGui::Text("Context: %s", audio::current_playlist_context());
 		ImGui::Text("Active Volume: %d", audio::current_context_volume());
 		ImGui::Text("Tracks: %d", audio::current_playlist_track_count());
+
+		ImGui::EndMenu();
+	}
+}
+
+void menus::about()
+{
+  ImGui::SetNextWindowSizeConstraints(ImVec2(220.0f, 0.0f), ImVec2(360.0f, FLT_MAX));
+	if (ImGui::BeginMenu("About"))
+	{
+       ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + 320.0f);
+		ImGui::Text("ECM-R");
+		ImGui::Separator();
+		ImGui::TextWrapped("Fork of the original ECM (External Custom Music) project.");
+		ImGui::BulletText("Original author: BttrDrgn");
+		ImGui::BulletText("Current fork maintainer: RCompanyX");
+		ImGui::Spacing();
+		ImGui::TextWrapped("Report bugs, request features, or share ideas through GitHub Issues.");
+		ImGui::PopTextWrapPos();
+
+		if (ImGui::Button("Repository"))
+		{
+			open_external_link(kRepositoryUrl);
+		}
+
+		ImGui::SameLine();
+
+		if (ImGui::Button("Issues"))
+		{
+			open_external_link(kIssuesUrl);
+		}
 
 		ImGui::EndMenu();
 	}
