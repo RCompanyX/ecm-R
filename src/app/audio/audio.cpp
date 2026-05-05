@@ -90,6 +90,8 @@ namespace
 
 	void sync_pause_state()
 	{
+		const bool was_paused = audio::paused;
+
 		audio::paused = audio::manual_paused || audio::game_paused;
 
 		if (audio::chan[0] == 0)
@@ -105,6 +107,11 @@ namespace
 		else
 		{
 			bass_api::start();
+
+			if (was_paused && !audio::currently_playing.title.empty() && audio::currently_playing.title != "N/A")
+			{
+				hook::SummonChyron(audio::currently_playing.title.c_str(), audio::currently_playing.artist.c_str(), audio::currently_playing.where.c_str());
+			}
 		}
 	}
 
@@ -511,9 +518,11 @@ void audio::create_playlist_order()
 
 void audio::play()
 {
+	const bool can_resume_current_song = audio::can_resume_current_song();
+
   audio::game_paused = false;
 
-	if (!audio::can_resume_current_song())
+	if (!can_resume_current_song)
 	{
 		audio::stop(0);
 	}
@@ -534,9 +543,11 @@ void audio::pause()
 
 void audio::toggle_manual_pause()
 {
+	const bool can_resume_current_song = audio::can_resume_current_song();
+
 	audio::manual_paused = !audio::manual_paused;
 
-	if (!audio::manual_paused && !audio::can_resume_current_song())
+	if (!audio::manual_paused && !can_resume_current_song)
 	{
 		audio::stop(0);
 	}
