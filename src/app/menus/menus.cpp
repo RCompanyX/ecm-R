@@ -243,7 +243,8 @@ void menus::about()
 	if (ImGui::BeginMenu("About"))
 	{
        ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + 320.0f);
-		ImGui::Text("ECM-R");
+		ImGui::Text("ECM-R - External Custom Music Reloaded");
+		ImGui::Text("Version: %s", VERSION);
 		ImGui::Separator();
 		ImGui::TextWrapped("Fork of the original ECM (External Custom Music) project.");
 		ImGui::BulletText("Original author: BttrDrgn");

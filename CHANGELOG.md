@@ -17,6 +17,21 @@ This changelog currently tracks the tagged releases recorded in this repository.
 - Updated the bug report template so issues can be reported against `v1.0.0`.
 - Refreshed changelog release references to point to the ECM-R repository, including the missing `v0.5.6-alpha` tag link.
 
+## [v0.5.7-alpha] - 2026-05-05
+
+### Added
+- Added the current ECM-R version display to the mod's About menu.
+
+### Changed
+- Restored the game's original chyron summon path so startup and resume notifications follow the native NFSU2 flow.
+- Tightened frontend FNG resume handling so unrelated frontend package loads no longer retrigger ECM-R playback or re-show the current banner unexpectedly.
+- Added deferred chyron retry handling so the current track notification is shown once the required frontend UI packages are ready.
+- Locked ECM-R hotkeys during the first startup chyron and unlock them automatically after that first banner has fully disappeared.
+
+### Documentation
+- Updated the README to warn that ECM-R hotkeys remain disabled until the first startup banner finishes.
+- Updated the configuration manual to document the startup hotkey lock behavior in the `[keys]` section.
+
 ## [v0.5.6-alpha] - 2026-05-03
 
 ### Added
@@ -131,5 +146,7 @@ This changelog currently tracks the tagged releases recorded in this repository.
 [v0.5.3-alpha]: https://github.com/RCompanyX/ecm-R/releases/tag/v0.5.3-alpha
 [v0.5.4-alpha]: https://github.com/RCompanyX/ecm-R/releases/tag/v0.5.4-alpha
 [v0.5.5-alpha]: https://github.com/RCompanyX/ecm-R/releases/tag/v0.5.5-alpha
+[v0.5.6-alpha]: https://github.com/RCompanyX/ecm/releases/tag/v0.5.6-alpha
+[v0.5.7-alpha]: https://github.com/RCompanyX/ecm/releases/tag/v0.5.7-alpha
 [v0.5.6-alpha]: https://github.com/RCompanyX/ecm-R/releases/tag/v0.5.6-alpha
 [v1.0.0]: https://github.com/RCompanyX/ecm-R/releases/tag/v1.0.0

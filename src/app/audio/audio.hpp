@@ -31,6 +31,8 @@ public:
 	static bool can_resume_current_song();
 	static void pause();
 	static void play();
+	static void request_current_chyron();
+	static bool are_hotkeys_locked();
 
 	static std::string playlist_name;
 	static std::string playlist_dir;
@@ -60,6 +62,9 @@ public:
 	static bool shuffle_enabled;
 	static bool repeat_enabled;
 	static bool playlist_ended;
+	static bool pending_chyron;
+	static bool first_chyron_seen;
+	static bool first_chyron_completed;
 
 	static playing_t currently_playing;
 };

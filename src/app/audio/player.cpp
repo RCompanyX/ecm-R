@@ -35,6 +35,6 @@ void play_file(const char* file, int channel)
 		audio::currently_playing.artist = artist;
 		audio::currently_playing.where = audio::playlist_name;
 
-		hook::SummonChyron(title.c_str(), artist.c_str(), audio::playlist_name.c_str());
+		audio::request_current_chyron();
 	}
 }

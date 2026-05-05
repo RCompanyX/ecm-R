@@ -2,51 +2,48 @@
 
 #include <psapi.h>
 
+#include "defs.hpp"
 #include "global.hpp"
 
 class hook
 {
 public:
-  static const char* CurrentChyronPackage()
+	static bool IsPackageLoaded(const char* package)
 	{
-		switch (global::game)
-		{
-		case game_t::NFSU2:
-			if (*(int*)(0x008654A4) != 3)
-			{
-				return "Chyron_IG.fng";
-			}
-
-			return "Chyron_FE.fng";
-		default:
-			return nullptr;
-		}
+		return package != nullptr && ((bool(*)(char*))0x0052CF60)(const_cast<char*>(package));
 	}
 
-	static void SummonChyron(const char* title, const char* artist, const char* album)
+	static bool IsFrontendChyronReady()
+	{
+		return IsPackageLoaded("UI_PC_Help_Bar.fng") ||
+			IsPackageLoaded("GarageMain.fng") ||
+			IsPackageLoaded("Chyron_FE.fng");
+	}
+
+	static bool SummonChyron(const char* title, const char* artist, const char* album)
 	{
 		switch (global::game)
 		{
 		case game_t::NFSU2:
-			int v4; // eax
-			const auto v3 = const_cast<char*>(CurrentChyronPackage());
-			if (!v3)
+			if (game_state == GameFlowState::None ||
+				game_state == GameFlowState::LoadingFrontend ||
+				game_state == GameFlowState::LoadingRegion ||
+				game_state == GameFlowState::LoadingTrack ||
+				game_state == GameFlowState::ExitDemoDisc)
 			{
-				break;
+				return false;
 			}
 
-			if (!((bool(*)(char*))0x0052CF60)(v3))
+			if ((game_state == GameFlowState::UnloadingFrontend || game_state == GameFlowState::InFrontend) && !IsFrontendChyronReady())
 			{
-				((void(*)(int, char*, int, int, int))0x00555F50)(14, v3, 0, 0, 0);
+				return false;
 			}
 
-			v4 = ((int(*)(char*))0x0051BD10)(v3);
-			if (v4)
-			{
-				reinterpret_cast<void(__thiscall*)(int, const char*, const char*, const char*)>(0x004AC880)(v4, title, artist, album);
-			}
-			break;
+			reinterpret_cast<void(__cdecl*)(const char*, const char*, const char*)>(0x004AC950)(title, artist, album);
+			return true;
 		}
+
+		return false;
 	}
 
 	static void HideChyron()

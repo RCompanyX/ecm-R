@@ -126,6 +126,7 @@ ECM-R currently scans the playlist folder for these file types:
 - Displays an in-game overlay with playback controls and playlist browsing
 - Allows runtime toggles for shuffle and repeat directly from the overlay
 - Includes Pause/Resume, Previous, and Next controls in the overlay and supports configurable hotkeys for opening the overlay and changing tracks
+- ECM-R hotkeys stay locked only during the first startup music banner and become available after that banner has fully disappeared
 - Uses real playback history for previous-track navigation while shuffle is enabled
 - Updates the overlay chyron from filenames when track metadata follows the expected naming format
 - Includes an About menu with repository and issue tracker links
@@ -161,6 +162,7 @@ The current roadmap includes:
 ## Notes
 
 - If `bass.dll` is missing or the wrong version is loaded, audio playback will fail.
+- ECM-R ignores its hotkeys during the first startup chyron so the initial banner can complete cleanly before manual controls are used.
 - `bass.dll` must be the official BASS runtime placed next to the ECM-R runtime files.
 - The current runtime integration has been tested with BASS `v2.4.18.11`.
 - Avoid using unofficial, modified, or repackaged `bass.dll` builds.
