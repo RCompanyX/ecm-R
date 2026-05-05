@@ -4,6 +4,19 @@ All notable changes to ECM-R are documented in this file.
 
 This changelog currently tracks the tagged releases recorded in this repository.
 
+## [v1.0.0] - 2026-05-04
+
+### Added
+- First stable ECM-R release for Need for Speed: Underground 2.
+
+### Changed
+- The runtime version marker now reports `v1.0.0` in generated and refreshed `ecm-r.x86.ini` files.
+
+### Documentation
+- Added the `v1.0.0` release notes.
+- Updated the bug report template so issues can be reported against `v1.0.0`.
+- Refreshed changelog release references to point to the ECM-R repository, including the missing `v0.5.6-alpha` tag link.
+
 ## [v0.5.7-alpha] - 2026-05-05
 
 ### Added
@@ -127,11 +140,13 @@ This changelog currently tracks the tagged releases recorded in this repository.
 - Clarified the `bass.dll` runtime requirement and BASS licensing notes.
 - Preserved fork attribution to the original ECM project by BttrDrgn.
 
-[v0.5.0-alpha]: https://github.com/RCompanyX/ecm/releases/tag/v0.5.0-alpha
-[v0.5.1-alpha]: https://github.com/RCompanyX/ecm/releases/tag/v0.5.1-alpha
-[v0.5.2-alpha]: https://github.com/RCompanyX/ecm/releases/tag/v0.5.2-alpha
-[v0.5.3-alpha]: https://github.com/RCompanyX/ecm/releases/tag/v0.5.3-alpha
-[v0.5.4-alpha]: https://github.com/RCompanyX/ecm/releases/tag/v0.5.4-alpha
-[v0.5.5-alpha]: https://github.com/RCompanyX/ecm/releases/tag/v0.5.5-alpha
+[v0.5.0-alpha]: https://github.com/RCompanyX/ecm-R/releases/tag/v0.5.0-alpha
+[v0.5.1-alpha]: https://github.com/RCompanyX/ecm-R/releases/tag/v0.5.1-alpha
+[v0.5.2-alpha]: https://github.com/RCompanyX/ecm-R/releases/tag/v0.5.2-alpha
+[v0.5.3-alpha]: https://github.com/RCompanyX/ecm-R/releases/tag/v0.5.3-alpha
+[v0.5.4-alpha]: https://github.com/RCompanyX/ecm-R/releases/tag/v0.5.4-alpha
+[v0.5.5-alpha]: https://github.com/RCompanyX/ecm-R/releases/tag/v0.5.5-alpha
 [v0.5.6-alpha]: https://github.com/RCompanyX/ecm/releases/tag/v0.5.6-alpha
 [v0.5.7-alpha]: https://github.com/RCompanyX/ecm/releases/tag/v0.5.7-alpha
+[v0.5.6-alpha]: https://github.com/RCompanyX/ecm-R/releases/tag/v0.5.6-alpha
+[v1.0.0]: https://github.com/RCompanyX/ecm-R/releases/tag/v1.0.0
