@@ -112,6 +112,8 @@ The `[config]` section accepts these values:
 
 ## `[keys]` Settings
 
+- ECM-R hotkeys remain locked during the first startup music banner and unlock automatically after that first chyron has been shown and dismissed once.
+
 ### `toggle_overlay`
 
 - Key used to show or hide the in-game overlay.

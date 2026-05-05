@@ -89,8 +89,6 @@ void init()
 	switch (game)
 	{
 	case game_t::NFSU2:
-		hook::retn(0x004AC950);	//Kill SummonChryon for custom impl
-
 		*(std::uint8_t*)(0x00534535) = 0xEB; //Prevent save from loading audio values
 
 		//Disable sliders in menu

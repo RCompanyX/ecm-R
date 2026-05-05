@@ -88,6 +88,45 @@ namespace
 		return audio::playlist_order[audio::current_song_index];
 	}
 
+	bool try_show_current_chyron()
+	{
+		if (audio::paused || audio::chan[0] == 0 || audio::currently_playing.title.empty() || audio::currently_playing.title == "N/A")
+		{
+			return false;
+		}
+
+		if (!hook::SummonChyron(audio::currently_playing.title.c_str(), audio::currently_playing.artist.c_str(), audio::currently_playing.where.c_str()))
+		{
+			return false;
+		}
+
+		if (!hook::IsPackageLoaded("Chyron_FE.fng") && !hook::IsPackageLoaded("Chyron_IG.fng"))
+		{
+			return false;
+		}
+
+		audio::pending_chyron = false;
+		return true;
+	}
+
+	void update_first_chyron_state()
+	{
+		if (audio::first_chyron_completed)
+		{
+			return;
+		}
+
+		const bool chyron_loaded = hook::IsPackageLoaded("Chyron_FE.fng") || hook::IsPackageLoaded("Chyron_IG.fng");
+		if (chyron_loaded)
+		{
+			audio::first_chyron_seen = true;
+		}
+		else if (audio::first_chyron_seen)
+		{
+			audio::first_chyron_completed = true;
+		}
+	}
+
 	void sync_pause_state()
 	{
 		const bool was_paused = audio::paused;
@@ -110,7 +149,7 @@ namespace
 
 			if (was_paused && !audio::currently_playing.title.empty() && audio::currently_playing.title != "N/A")
 			{
-				hook::SummonChyron(audio::currently_playing.title.c_str(), audio::currently_playing.artist.c_str(), audio::currently_playing.where.c_str());
+				audio::request_current_chyron();
 			}
 		}
 	}
@@ -350,6 +389,7 @@ void audio::init()
 void audio::update()
 {
 	global::state = game_state;
+	update_first_chyron_state();
 
    if (audio::stop_music_on_loading_screens && is_loading_state())
 	{
@@ -370,6 +410,11 @@ void audio::update()
    case bass_api::active_stopped:
 		audio::playing = false;
 		break;
+	}
+
+	if (audio::pending_chyron)
+	{
+		try_show_current_chyron();
 	}
 
 	if (!audio::paused && !audio::playing)
@@ -405,6 +450,7 @@ void audio::stop(int channel)
 	audio::currently_playing.title = "N/A";
    audio::currently_playing.artist = "N/A";
 	audio::currently_playing.where = "N/A";
+	audio::pending_chyron = false;
 }
 
 void audio::shuffle()
@@ -595,6 +641,17 @@ void audio::play_previous_song()
     play_relative_song(-1);
 }
 
+void audio::request_current_chyron()
+{
+	audio::pending_chyron = true;
+	try_show_current_chyron();
+}
+
+bool audio::are_hotkeys_locked()
+{
+	return !audio::first_chyron_completed;
+}
+
 void audio::set_volume(std::int32_t vol_in)
 {
    const std::int32_t volume = clamp_volume(vol_in);
@@ -618,6 +675,9 @@ bool audio::stop_music_on_loading_screens = true;
 bool audio::shuffle_enabled = true;
 bool audio::repeat_enabled = true;
 bool audio::playlist_ended = false;
+bool audio::pending_chyron = false;
+bool audio::first_chyron_seen = false;
+bool audio::first_chyron_completed = false;
 playing_t audio::currently_playing = {"N/A", "N/A", "N/A"};
 std::string audio::playlist_name = "Music";
 std::string audio::playlist_dir = "Music";

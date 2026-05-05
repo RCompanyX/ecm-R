@@ -14,6 +14,19 @@ std::unordered_map<input::callback_type, std::vector<input::callback>> input::ca
 
 namespace
 {
+	bool hotkeys_locked()
+	{
+		return audio::are_hotkeys_locked();
+	}
+
+	void sync_hotkey_latches_while_locked()
+	{
+		toggle_once = (GetAsyncKeyState(input::toggle_overlay_key) & 0x8000) != 0;
+		pause_once = (GetAsyncKeyState(input::pause_track_key) & 0x8000) != 0;
+		skip_once = (GetAsyncKeyState(input::skip_track_key) & 0x8000) != 0;
+		previous_once = (GetAsyncKeyState(input::previous_track_key) & 0x8000) != 0;
+	}
+
 	void skip_to_next_track()
 	{
 		if (audio::playing)
@@ -139,6 +152,11 @@ void input::init_overlay()
 
 	input::on(input::callback_type::on_key_down, [](auto key) -> input::result_type
 	{
+		if (hotkeys_locked())
+		{
+			return input::result_type::cont;
+		}
+
      if (key == input::toggle_overlay_key && !toggle_once)
 		{
 			global::hide = !global::hide;
@@ -195,6 +213,12 @@ void input::init_overlay()
 
 void input::update()
 {
+	if (hotkeys_locked())
+	{
+		sync_hotkey_latches_while_locked();
+		return;
+	}
+
  const bool pause_down = (GetAsyncKeyState(input::pause_track_key) & 0x8000) != 0;
 	if (pause_down && !pause_once)
 	{
