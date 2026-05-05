@@ -73,7 +73,7 @@ void sub_00537980(int a2, char* a3, int a4)
 	{
 		audio::pause();
 	}
-	else
+	else if (audio::game_paused)
 	{
 		audio::play();
 	}
