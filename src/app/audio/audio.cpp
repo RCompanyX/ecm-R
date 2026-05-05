@@ -105,10 +105,6 @@ namespace
 		else
 		{
 			bass_api::start();
-           if (!audio::currently_playing.title.empty() && audio::currently_playing.title != "N/A")
-			{
-				hook::SummonChyron(audio::currently_playing.title.c_str(), audio::currently_playing.artist.c_str(), audio::currently_playing.where.c_str());
-			}
 		}
 	}
 
