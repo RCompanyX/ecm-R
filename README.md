@@ -130,7 +130,7 @@ ECM-R currently scans the playlist folder for these file types:
 - ECM-R hotkeys stay locked only during the first startup music banner and become available after that banner has fully disappeared
 - Uses real playback history for previous-track navigation while shuffle is enabled
 - Updates the overlay chyron from filenames when track metadata follows the expected naming format
-- Includes an About menu with repository and issue tracker links
+- Includes an About menu with repository and issue tracker links, plus a red new-version notice when a newer GitHub release is detected at startup
 
 ### Configuration and Persistence
 
