@@ -22,11 +22,18 @@ namespace
 	constexpr auto kRepositoryUrl = "https://github.com/RCompanyX/ecm-R";
 	constexpr auto kIssuesUrl = "https://github.com/RCompanyX/ecm-R/issues";
 	constexpr wchar_t kLatestReleaseHost[] = L"api.github.com";
-	constexpr wchar_t kLatestReleasePath[] = L"/repos/RCompanyX/ecm-R/releases/latest";
-	constexpr char kVersionUpdateLabel[] = "New version available";
+	constexpr wchar_t kReleaseListPath[] = L"/repos/RCompanyX/ecm-R/releases?per_page=10";
+	constexpr char kStableVersionUpdateLabel[] = "New stable release available";
+	constexpr char kTestingVersionUpdateLabel[] = "New testing pre-release available";
 	input::hotkey_action hotkey_menu_feedback_action = input::hotkey_action::count;
 	std::string hotkey_menu_feedback_message;
 	bool hotkey_menu_feedback_is_error = false;
+	enum class release_discovery_policy
+	{
+		latest_published,
+		latest_non_draft,
+		latest_stable,
+	};
 	enum class version_check_state
 	{
 		idle,
@@ -35,11 +42,20 @@ namespace
 		update_available,
 		failed,
 	};
+	constexpr release_discovery_policy kReleaseDiscoveryPolicy = release_discovery_policy::latest_non_draft;
 	std::atomic<version_check_state> version_status = version_check_state::idle;
 	std::once_flag version_check_once;
 	std::mutex version_mutex;
 	std::future<void> version_check_task;
-	std::string latest_release_tag;
+
+	struct github_release_info
+	{
+		std::string tag_name;
+		bool draft = false;
+		bool prerelease = false;
+	};
+
+	github_release_info latest_release_info;
 
 	struct parsed_version
 	{
@@ -155,7 +171,158 @@ namespace
 		return left.prerelease < right.prerelease ? -1 : 1;
 	}
 
-	std::string fetch_latest_release_response()
+	bool try_extract_json_string_field(const std::string& source, const char* key, std::string& value)
+	{
+		const std::size_t key_pos = source.find(key);
+		if (key_pos == std::string::npos)
+		{
+			return false;
+		}
+
+		const std::size_t colon_pos = source.find(':', key_pos);
+		if (colon_pos == std::string::npos)
+		{
+			return false;
+		}
+
+		const std::size_t value_start = source.find('"', colon_pos + 1);
+		if (value_start == std::string::npos)
+		{
+			return false;
+		}
+
+		std::string extracted_value;
+		for (std::size_t cursor = value_start + 1; cursor < source.size(); ++cursor)
+		{
+			const char current = source[cursor];
+			if (current == '\\')
+			{
+				if (cursor + 1 >= source.size())
+				{
+					return false;
+				}
+
+				extracted_value.push_back(source[cursor + 1]);
+				++cursor;
+				continue;
+			}
+
+			if (current == '"')
+			{
+				value = extracted_value;
+				return true;
+			}
+
+			extracted_value.push_back(current);
+		}
+
+		return false;
+	}
+
+	bool try_extract_json_bool_field(const std::string& source, const char* key, bool& value)
+	{
+		const std::size_t key_pos = source.find(key);
+		if (key_pos == std::string::npos)
+		{
+			return false;
+		}
+
+		const std::size_t colon_pos = source.find(':', key_pos);
+		if (colon_pos == std::string::npos)
+		{
+			return false;
+		}
+
+		const std::size_t value_pos = source.find_first_not_of(" \t\r\n", colon_pos + 1);
+		if (value_pos == std::string::npos)
+		{
+			return false;
+		}
+
+		if (source.compare(value_pos, 4, "true") == 0)
+		{
+			value = true;
+			return true;
+		}
+
+		if (source.compare(value_pos, 5, "false") == 0)
+		{
+			value = false;
+			return true;
+		}
+
+		return false;
+	}
+
+	std::vector<github_release_info> parse_release_list(const std::string& response_body)
+	{
+		std::vector<github_release_info> releases;
+		std::size_t search_pos = 0;
+
+		while ((search_pos = response_body.find("\"tag_name\"", search_pos)) != std::string::npos)
+		{
+			const std::size_t body_pos = response_body.find("\"body\"", search_pos);
+			if (body_pos == std::string::npos)
+			{
+				break;
+			}
+
+			const std::string release_segment = response_body.substr(search_pos, body_pos - search_pos);
+			github_release_info release;
+			if (try_extract_json_string_field(release_segment, "\"tag_name\"", release.tag_name) &&
+				try_extract_json_bool_field(release_segment, "\"draft\"", release.draft) &&
+				try_extract_json_bool_field(release_segment, "\"prerelease\"", release.prerelease))
+			{
+				releases.push_back(std::move(release));
+			}
+
+			search_pos = body_pos;
+		}
+
+		return releases;
+	}
+
+	bool release_matches_discovery_policy(const github_release_info& release)
+	{
+		switch (kReleaseDiscoveryPolicy)
+		{
+		case release_discovery_policy::latest_published:
+			return true;
+
+		case release_discovery_policy::latest_non_draft:
+			return !release.draft;
+
+		case release_discovery_policy::latest_stable:
+			return !release.draft && !release.prerelease;
+		}
+
+		return false;
+	}
+
+	github_release_info extract_latest_release_info(const std::string& response_body)
+	{
+		for (const github_release_info& release : parse_release_list(response_body))
+		{
+			if (release_matches_discovery_policy(release))
+			{
+				return release;
+			}
+		}
+
+		return {};
+	}
+
+	const char* version_update_label(const github_release_info& release)
+	{
+		return release.prerelease ? kTestingVersionUpdateLabel : kStableVersionUpdateLabel;
+	}
+
+	const char* latest_release_tooltip_label(const github_release_info& release)
+	{
+		return release.prerelease ? "Latest testing pre-release" : "Latest stable release";
+	}
+
+	std::string fetch_release_list_response()
 	{
 		HMODULE winhttp_module = LoadLibraryW(L"winhttp.dll");
 		if (winhttp_module == nullptr)
@@ -195,7 +362,7 @@ namespace
 		if (connection != nullptr)
 		{
 			static const wchar_t* accept_types[] = { L"*/*", nullptr };
-			request = winhttp_open_request(connection, L"GET", kLatestReleasePath, nullptr, WINHTTP_NO_REFERER, accept_types, WINHTTP_FLAG_SECURE);
+			request = winhttp_open_request(connection, L"GET", kReleaseListPath, nullptr, WINHTTP_NO_REFERER, accept_types, WINHTTP_FLAG_SECURE);
 		}
 
 		if (request != nullptr)
@@ -241,18 +408,6 @@ namespace
 		return response_body;
 	}
 
-	std::string extract_latest_release_tag(const std::string& response_body)
-	{
-		static const std::regex release_tag_pattern(R"("tag_name"\s*:\s*"([^"]+)")");
-		std::smatch match;
-		if (!std::regex_search(response_body, match, release_tag_pattern) || match.size() < 2)
-		{
-			return {};
-		}
-
-		return match[1].str();
-	}
-
 	void run_version_check_once()
 	{
 		version_status.store(version_check_state::checking, std::memory_order_release);
@@ -260,8 +415,8 @@ namespace
 		{
 			try
 			{
-				const std::string latest_tag = extract_latest_release_tag(fetch_latest_release_response());
-				if (latest_tag.empty())
+				const github_release_info latest_release = extract_latest_release_info(fetch_release_list_response());
+				if (latest_release.tag_name.empty())
 				{
 					version_status.store(version_check_state::failed, std::memory_order_release);
 					return;
@@ -269,10 +424,10 @@ namespace
 
 				{
 					std::scoped_lock lock(version_mutex);
-					latest_release_tag = latest_tag;
+					latest_release_info = latest_release;
 				}
 
-				const version_check_state next_status = compare_versions(latest_tag, VERSION) > 0
+				const version_check_state next_status = compare_versions(latest_release.tag_name, VERSION) > 0
 					? version_check_state::update_available
 					: version_check_state::up_to_date;
 				version_status.store(next_status, std::memory_order_release);
@@ -304,22 +459,21 @@ namespace
 		return version_status.load(std::memory_order_acquire) == version_check_state::update_available;
 	}
 
-	std::string latest_release_version()
+	github_release_info current_latest_release_info()
 	{
 		std::scoped_lock lock(version_mutex);
-		return latest_release_tag;
+		return latest_release_info;
 	}
 
-	void draw_new_version_badge()
+	void draw_new_version_badge(const github_release_info& release)
 	{
 		const ImVec4 update_color(0.92f, 0.25f, 0.25f, 1.0f);
-		ImGui::TextColored(update_color, "%s", kVersionUpdateLabel);
+		ImGui::TextColored(update_color, "%s", version_update_label(release));
 		if (ImGui::IsItemHovered())
 		{
-			const std::string latest_tag = latest_release_version();
-			if (!latest_tag.empty())
+			if (!release.tag_name.empty())
 			{
-				ImGui::SetTooltip("Latest release: %s", latest_tag.c_str());
+				ImGui::SetTooltip("%s: %s", latest_release_tooltip_label(release), release.tag_name.c_str());
 			}
 		}
 	}
@@ -497,8 +651,9 @@ void menus::main_menu_bar()
 
 		const ImGuiStyle& style = ImGui::GetStyle();
 		const float about_width = ImGui::CalcTextSize("About").x + style.FramePadding.x * 2.0f;
-		const bool show_version_update = has_newer_release_available();
-		const float version_update_width = show_version_update ? ImGui::CalcTextSize(kVersionUpdateLabel).x + style.ItemSpacing.x : 0.0f;
+		const github_release_info latest_release = current_latest_release_info();
+		const bool show_version_update = has_newer_release_available() && !latest_release.tag_name.empty();
+		const float version_update_width = show_version_update ? ImGui::CalcTextSize(version_update_label(latest_release)).x + style.ItemSpacing.x : 0.0f;
 		const float available_width = ImGui::GetContentRegionAvail().x;
 		const float spacer_width = available_width - about_width - version_update_width;
 		if (spacer_width > 0.0f)
@@ -509,7 +664,7 @@ void menus::main_menu_bar()
 
 		if (show_version_update)
 		{
-			draw_new_version_badge();
+			draw_new_version_badge(latest_release);
 			ImGui::SameLine();
 		}
 
