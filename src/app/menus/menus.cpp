@@ -9,16 +9,296 @@
 #include "audio/player.hpp"
 
 #include <array>
+#include <atomic>
+#include <cctype>
 #include <cfloat>
+#include <mutex>
 #include <shellapi.h>
+#include <winhttp.h>
 
 namespace
 {
 	constexpr auto kRepositoryUrl = "https://github.com/RCompanyX/ecm-R";
 	constexpr auto kIssuesUrl = "https://github.com/RCompanyX/ecm-R/issues";
+	constexpr wchar_t kLatestReleaseHost[] = L"api.github.com";
+	constexpr wchar_t kLatestReleasePath[] = L"/repos/RCompanyX/ecm-R/releases/latest";
+	constexpr char kVersionUpdateLabel[] = "New version available";
 	input::hotkey_action hotkey_menu_feedback_action = input::hotkey_action::count;
 	std::string hotkey_menu_feedback_message;
 	bool hotkey_menu_feedback_is_error = false;
+	enum class version_check_state
+	{
+		idle,
+		checking,
+		up_to_date,
+		update_available,
+		failed,
+	};
+	std::atomic<version_check_state> version_status = version_check_state::idle;
+	std::once_flag version_check_once;
+	std::mutex version_mutex;
+	std::string latest_release_tag;
+
+	struct parsed_version
+	{
+		std::array<int, 3> numbers{ 0, 0, 0 };
+		std::string prerelease;
+		bool has_numeric_component = false;
+	};
+
+	using winhttp_open_fn = HINTERNET(WINAPI*)(LPCWSTR, DWORD, LPCWSTR, LPCWSTR, DWORD);
+	using winhttp_connect_fn = HINTERNET(WINAPI*)(HINTERNET, LPCWSTR, INTERNET_PORT, DWORD);
+	using winhttp_open_request_fn = HINTERNET(WINAPI*)(HINTERNET, LPCWSTR, LPCWSTR, LPCWSTR, LPCWSTR, LPCWSTR*, DWORD);
+	using winhttp_send_request_fn = BOOL(WINAPI*)(HINTERNET, LPCWSTR, DWORD, LPVOID, DWORD, DWORD, DWORD_PTR);
+	using winhttp_receive_response_fn = BOOL(WINAPI*)(HINTERNET, LPVOID);
+	using winhttp_query_data_available_fn = BOOL(WINAPI*)(HINTERNET, LPDWORD);
+	using winhttp_read_data_fn = BOOL(WINAPI*)(HINTERNET, LPVOID, DWORD, LPDWORD);
+	using winhttp_set_timeouts_fn = BOOL(WINAPI*)(HINTERNET, int, int, int, int);
+	using winhttp_close_handle_fn = BOOL(WINAPI*)(HINTERNET);
+
+	parsed_version parse_version_string(std::string version)
+	{
+		version.erase(version.begin(), std::find_if(version.begin(), version.end(), [](const unsigned char ch)
+		{
+			return !std::isspace(ch);
+		}));
+		version.erase(std::find_if(version.rbegin(), version.rend(), [](const unsigned char ch)
+		{
+			return !std::isspace(ch);
+		}).base(), version.end());
+
+		if (!version.empty() && (version.front() == 'v' || version.front() == 'V'))
+		{
+			version.erase(version.begin());
+		}
+
+		parsed_version result;
+		std::size_t cursor = 0;
+		std::size_t numeric_index = 0;
+		while (cursor < version.size() && numeric_index < result.numbers.size())
+		{
+			if (!std::isdigit(static_cast<unsigned char>(version[cursor])))
+			{
+				break;
+			}
+
+			const std::size_t start = cursor;
+			while (cursor < version.size() && std::isdigit(static_cast<unsigned char>(version[cursor])))
+			{
+				++cursor;
+			}
+
+			result.numbers[numeric_index++] = std::stoi(version.substr(start, cursor - start));
+			result.has_numeric_component = true;
+
+			if (cursor < version.size() && version[cursor] == '.')
+			{
+				++cursor;
+				continue;
+			}
+
+			break;
+		}
+
+		if (cursor < version.size() && version[cursor] == '-')
+		{
+			result.prerelease = version.substr(cursor + 1);
+		}
+		else if (cursor < version.size())
+		{
+			result.prerelease = version.substr(cursor);
+		}
+
+		return result;
+	}
+
+	int compare_versions(const std::string& lhs, const std::string& rhs)
+	{
+		const parsed_version left = parse_version_string(lhs);
+		const parsed_version right = parse_version_string(rhs);
+
+		if (!left.has_numeric_component || !right.has_numeric_component)
+		{
+			if (lhs == rhs)
+			{
+				return 0;
+			}
+
+			return lhs < rhs ? -1 : 1;
+		}
+
+		for (std::size_t i = 0; i < left.numbers.size(); ++i)
+		{
+			if (left.numbers[i] != right.numbers[i])
+			{
+				return left.numbers[i] < right.numbers[i] ? -1 : 1;
+			}
+		}
+
+		if (left.prerelease == right.prerelease)
+		{
+			return 0;
+		}
+
+		if (left.prerelease.empty())
+		{
+			return 1;
+		}
+
+		if (right.prerelease.empty())
+		{
+			return -1;
+		}
+
+		return left.prerelease < right.prerelease ? -1 : 1;
+	}
+
+	std::string fetch_latest_release_response()
+	{
+		HMODULE winhttp_module = LoadLibraryW(L"winhttp.dll");
+		if (winhttp_module == nullptr)
+		{
+			return {};
+		}
+
+		const auto winhttp_open = reinterpret_cast<winhttp_open_fn>(GetProcAddress(winhttp_module, "WinHttpOpen"));
+		const auto winhttp_connect = reinterpret_cast<winhttp_connect_fn>(GetProcAddress(winhttp_module, "WinHttpConnect"));
+		const auto winhttp_open_request = reinterpret_cast<winhttp_open_request_fn>(GetProcAddress(winhttp_module, "WinHttpOpenRequest"));
+		const auto winhttp_send_request = reinterpret_cast<winhttp_send_request_fn>(GetProcAddress(winhttp_module, "WinHttpSendRequest"));
+		const auto winhttp_receive_response = reinterpret_cast<winhttp_receive_response_fn>(GetProcAddress(winhttp_module, "WinHttpReceiveResponse"));
+		const auto winhttp_query_data_available = reinterpret_cast<winhttp_query_data_available_fn>(GetProcAddress(winhttp_module, "WinHttpQueryDataAvailable"));
+		const auto winhttp_read_data = reinterpret_cast<winhttp_read_data_fn>(GetProcAddress(winhttp_module, "WinHttpReadData"));
+		const auto winhttp_set_timeouts = reinterpret_cast<winhttp_set_timeouts_fn>(GetProcAddress(winhttp_module, "WinHttpSetTimeouts"));
+		const auto winhttp_close_handle = reinterpret_cast<winhttp_close_handle_fn>(GetProcAddress(winhttp_module, "WinHttpCloseHandle"));
+		if (winhttp_open == nullptr || winhttp_connect == nullptr || winhttp_open_request == nullptr ||
+			winhttp_send_request == nullptr || winhttp_receive_response == nullptr ||
+			winhttp_query_data_available == nullptr || winhttp_read_data == nullptr ||
+			winhttp_set_timeouts == nullptr || winhttp_close_handle == nullptr)
+		{
+			FreeLibrary(winhttp_module);
+			return {};
+		}
+
+		std::string response_body;
+		HINTERNET session = winhttp_open(L"ECM-R Version Check/1.0", WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
+		HINTERNET connection = nullptr;
+		HINTERNET request = nullptr;
+
+		if (session != nullptr)
+		{
+			winhttp_set_timeouts(session, 3000, 3000, 3000, 3000);
+			connection = winhttp_connect(session, kLatestReleaseHost, INTERNET_DEFAULT_HTTPS_PORT, 0);
+		}
+
+		if (connection != nullptr)
+		{
+			static const wchar_t* accept_types[] = { L"*/*", nullptr };
+			request = winhttp_open_request(connection, L"GET", kLatestReleasePath, nullptr, WINHTTP_NO_REFERER, accept_types, WINHTTP_FLAG_SECURE);
+		}
+
+		if (request != nullptr)
+		{
+			const wchar_t* headers = L"Accept: application/vnd.github+json\r\nX-GitHub-Api-Version: 2022-11-28\r\n";
+			if (winhttp_send_request(request, headers, -1L, WINHTTP_NO_REQUEST_DATA, 0, 0, 0) &&
+				winhttp_receive_response(request, nullptr))
+			{
+				DWORD bytes_available = 0;
+				while (winhttp_query_data_available(request, &bytes_available) && bytes_available > 0)
+				{
+					std::string chunk(bytes_available, '\0');
+					DWORD bytes_read = 0;
+					if (!winhttp_read_data(request, chunk.data(), bytes_available, &bytes_read))
+					{
+						response_body.clear();
+						break;
+					}
+
+					chunk.resize(bytes_read);
+					response_body += chunk;
+					bytes_available = 0;
+				}
+			}
+		}
+
+		if (request != nullptr)
+		{
+			winhttp_close_handle(request);
+		}
+
+		if (connection != nullptr)
+		{
+			winhttp_close_handle(connection);
+		}
+
+		if (session != nullptr)
+		{
+			winhttp_close_handle(session);
+		}
+
+		FreeLibrary(winhttp_module);
+		return response_body;
+	}
+
+	std::string extract_latest_release_tag(const std::string& response_body)
+	{
+		static const std::regex release_tag_pattern(R"("tag_name"\s*:\s*"([^"]+)")");
+		std::smatch match;
+		if (!std::regex_search(response_body, match, release_tag_pattern) || match.size() < 2)
+		{
+			return {};
+		}
+
+		return match[1].str();
+	}
+
+	void run_version_check_once()
+	{
+		version_status.store(version_check_state::checking, std::memory_order_release);
+		std::thread([]()
+		{
+			const std::string latest_tag = extract_latest_release_tag(fetch_latest_release_response());
+			if (latest_tag.empty())
+			{
+				version_status.store(version_check_state::failed, std::memory_order_release);
+				return;
+			}
+
+			{
+				std::scoped_lock lock(version_mutex);
+				latest_release_tag = latest_tag;
+			}
+
+			const version_check_state next_status = compare_versions(latest_tag, VERSION) > 0
+				? version_check_state::update_available
+				: version_check_state::up_to_date;
+			version_status.store(next_status, std::memory_order_release);
+		}).detach();
+	}
+
+	bool has_newer_release_available()
+	{
+		return version_status.load(std::memory_order_acquire) == version_check_state::update_available;
+	}
+
+	std::string latest_release_version()
+	{
+		std::scoped_lock lock(version_mutex);
+		return latest_release_tag;
+	}
+
+	void draw_new_version_badge()
+	{
+		const ImVec4 update_color(0.92f, 0.25f, 0.25f, 1.0f);
+		ImGui::TextColored(update_color, "%s", kVersionUpdateLabel);
+		if (ImGui::IsItemHovered())
+		{
+			const std::string latest_tag = latest_release_version();
+			if (!latest_tag.empty())
+			{
+				ImGui::SetTooltip("Latest release: %s", latest_tag.c_str());
+			}
+		}
+	}
 
 	void clear_hotkey_menu_feedback()
 	{
@@ -108,6 +388,7 @@ void menus::init()
 	ImGui::GetIO().IniFilename = nullptr;
 
 	menus::build_font(ImGui::GetIO());
+	std::call_once(version_check_once, run_version_check_once);
 }
 
 void menus::prepare()
@@ -191,11 +472,19 @@ void menus::main_menu_bar()
 
 		const ImGuiStyle& style = ImGui::GetStyle();
 		const float about_width = ImGui::CalcTextSize("About").x + style.FramePadding.x * 2.0f;
-     const float available_width = ImGui::GetContentRegionAvail().x;
-		const float spacer_width = available_width - about_width;
+		const bool show_version_update = has_newer_release_available();
+		const float version_update_width = show_version_update ? ImGui::CalcTextSize(kVersionUpdateLabel).x + style.ItemSpacing.x : 0.0f;
+      const float available_width = ImGui::GetContentRegionAvail().x;
+		const float spacer_width = available_width - about_width - version_update_width;
 		if (spacer_width > 0.0f)
 		{
-         ImGui::Dummy(ImVec2(spacer_width, 0.0f));
+          ImGui::Dummy(ImVec2(spacer_width, 0.0f));
+			ImGui::SameLine();
+		}
+
+		if (show_version_update)
+		{
+			draw_new_version_badge();
 			ImGui::SameLine();
 		}
 
