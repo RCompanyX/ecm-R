@@ -23,6 +23,7 @@ namespace
 	constexpr wchar_t kLatestReleaseHost[] = L"api.github.com";
 	constexpr wchar_t kLatestReleasePath[] = L"/repos/RCompanyX/ecm-R/releases/latest";
 	constexpr char kVersionUpdateLabel[] = "New version available";
+	const std::regex kReleaseTagPattern(R"("tag_name"\s*:\s*"([^"]+)")");
 	input::hotkey_action hotkey_menu_feedback_action = input::hotkey_action::count;
 	std::string hotkey_menu_feedback_message;
 	bool hotkey_menu_feedback_is_error = false;
@@ -241,9 +242,8 @@ namespace
 
 	std::string extract_latest_release_tag(const std::string& response_body)
 	{
-		static const std::regex release_tag_pattern(R"("tag_name"\s*:\s*"([^"]+)")");
 		std::smatch match;
-		if (!std::regex_search(response_body, match, release_tag_pattern) || match.size() < 2)
+		if (!std::regex_search(response_body, match, kReleaseTagPattern) || match.size() < 2)
 		{
 			return {};
 		}
