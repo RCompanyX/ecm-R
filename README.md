@@ -37,6 +37,7 @@ If you are looking for the original ECM source, attribution chain, or upstream h
 ## Credits and Support
 
 - **Original ECM project:** BttrDrgn
+- **NFSU2 reverse-engineering reference:** [yugecin/nfsu2-re](https://github.com/yugecin/nfsu2-re) for publishing reverse-engineering notes and documentation used as reference material during ECM-R development.
 - **Current ECM-R fork maintainer:** RCompanyX
 - **Bug reports, feature requests, and ideas:** [GitHub Issues](https://github.com/RCompanyX/ecm-R/issues)
 
