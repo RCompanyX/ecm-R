@@ -4,6 +4,17 @@ All notable changes to ECM-R are documented in this file.
 
 This changelog tracks the tagged releases recorded in this repository.
 
+## [v0.5.9-alpha] - 2026-05-10
+
+### Changed
+- Improved `bass.dll` load failure reporting so the startup popup now shows clearer setup guidance, the localized Windows error text, and the exact path that ECM-R tried to load.
+- The runtime BASS loader now captures the original Windows load error before resetting its internal state, which keeps the reported failure reason stable.
+
+### Documentation
+- Updated the README roadmap with planned in-game movie handling for comic-style in-game cinematics.
+- Updated the README notes to document the new `bass.dll` failure popup details.
+- Added release notes for `v0.5.9-alpha`.
+
 ## [v0.5.8-alpha] - 2026-05-10
 
 ### Added
@@ -151,3 +162,4 @@ This changelog tracks the tagged releases recorded in this repository.
 [v0.5.6-alpha]: https://github.com/RCompanyX/ecm/releases/tag/v0.5.6-alpha
 [v0.5.7-alpha]: https://github.com/RCompanyX/ecm/releases/tag/v0.5.7-alpha
 [v0.5.8-alpha]: https://github.com/RCompanyX/ecm/releases/tag/v0.5.8-alpha
+[v0.5.9-alpha]: https://github.com/RCompanyX/ecm-R/releases/tag/v0.5.9-alpha

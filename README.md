@@ -37,6 +37,7 @@ If you are looking for the original ECM source, attribution chain, or upstream h
 ## Credits and Support
 
 - **Original ECM project:** BttrDrgn
+- **NFSU2 reverse-engineering reference:** [yugecin/nfsu2-re](https://github.com/yugecin/nfsu2-re) for publishing reverse-engineering notes and documentation used as reference material during ECM-R development.
 - **Current ECM-R fork maintainer:** RCompanyX
 - **Bug reports, feature requests, and ideas:** [GitHub Issues](https://github.com/RCompanyX/ecm-R/issues)
 
@@ -159,12 +160,13 @@ The current roadmap includes:
 
 - **Multiple Playlists** - Switch between different music folders dynamically within the game
 - **Advanced Context Filters** - More granular playback rules beyond FE/IG (events, game modes, etc.)
+- **In-Game Movie Handling** - Stop custom music during comic-style in-game cinematics before and after races
 - **Volume Normalization** - Automatic level equalization across all tracks
-- **Lip-Sync Synchronization** - Adjust audio synchronization for cutscenes and cinematics
 
 ## Notes
 
 - If `bass.dll` is missing or the wrong version is loaded, audio playback will fail.
+- If `bass.dll` cannot be loaded, ECM-R shows the Windows error text and the exact path it tried in the startup popup.
 - ECM-R ignores its hotkeys during the first startup chyron so the initial banner can complete cleanly before manual controls are used.
 - `bass.dll` must be the official BASS runtime placed next to the ECM-R runtime files.
 - The current runtime integration has been tested with BASS `v2.4.18.11`.

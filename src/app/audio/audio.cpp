@@ -359,7 +359,13 @@ void audio::init()
 
    if (!bass_api::load())
 	{
-        const std::string error_message = logger::va("bass.dll could not be loaded!\n%s\nNo audio will play for this session!", bass_api::last_error().c_str());
+		const std::string error_message = logger::va(
+			"Failed to load bass.dll.\n"
+			"%s\n"
+			"Make sure bass.dll is in the scripts folder next to ecm-r.dll.\n"
+			"See the mod README for where to get bass.dll and where to place it.\n"
+			"ECM-R music will be disabled for this session.",
+			bass_api::last_error().c_str());
 		logger::log_error(logger::va("Failed to load bass.dll: %s", bass_api::last_error().c_str()));
 		global::msg_box("ECM-R BASS", error_message.c_str());
 		global::shutdown = true;

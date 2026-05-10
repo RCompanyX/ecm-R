@@ -119,9 +119,9 @@ namespace bass_api
         module_handle = LoadLibraryA(bass_path.c_str());
         if (module_handle == nullptr)
         {
-            last_error_message = logger::va("%s (path: %s)", format_system_error(GetLastError()).c_str(), bass_path.c_str());
+            const DWORD error = GetLastError();
             reset();
-            last_error_message = logger::va("%s (path: %s)", format_system_error(GetLastError()).c_str(), bass_path.c_str());
+            last_error_message = logger::va("%s\nTried path: %s", format_system_error(error).c_str(), bass_path.c_str());
             return false;
         }
 
