@@ -12,6 +12,7 @@
 #include <atomic>
 #include <cctype>
 #include <cfloat>
+#include <future>
 #include <mutex>
 #include <shellapi.h>
 #include <winhttp.h>
@@ -23,7 +24,6 @@ namespace
 	constexpr wchar_t kLatestReleaseHost[] = L"api.github.com";
 	constexpr wchar_t kLatestReleasePath[] = L"/repos/RCompanyX/ecm-R/releases/latest";
 	constexpr char kVersionUpdateLabel[] = "New version available";
-	const std::regex kReleaseTagPattern(R"("tag_name"\s*:\s*"([^"]+)")");
 	input::hotkey_action hotkey_menu_feedback_action = input::hotkey_action::count;
 	std::string hotkey_menu_feedback_message;
 	bool hotkey_menu_feedback_is_error = false;
@@ -38,6 +38,7 @@ namespace
 	std::atomic<version_check_state> version_status = version_check_state::idle;
 	std::once_flag version_check_once;
 	std::mutex version_mutex;
+	std::future<void> version_check_task;
 	std::string latest_release_tag;
 
 	struct parsed_version
@@ -242,8 +243,9 @@ namespace
 
 	std::string extract_latest_release_tag(const std::string& response_body)
 	{
+		static const std::regex release_tag_pattern(R"("tag_name"\s*:\s*"([^"]+)")");
 		std::smatch match;
-		if (!std::regex_search(response_body, match, kReleaseTagPattern) || match.size() < 2)
+		if (!std::regex_search(response_body, match, release_tag_pattern) || match.size() < 2)
 		{
 			return {};
 		}
@@ -254,25 +256,47 @@ namespace
 	void run_version_check_once()
 	{
 		version_status.store(version_check_state::checking, std::memory_order_release);
-		std::thread([]()
+		version_check_task = std::async(std::launch::async, []()
 		{
-			const std::string latest_tag = extract_latest_release_tag(fetch_latest_release_response());
-			if (latest_tag.empty())
+			try
+			{
+				const std::string latest_tag = extract_latest_release_tag(fetch_latest_release_response());
+				if (latest_tag.empty())
+				{
+					version_status.store(version_check_state::failed, std::memory_order_release);
+					return;
+				}
+
+				{
+					std::scoped_lock lock(version_mutex);
+					latest_release_tag = latest_tag;
+				}
+
+				const version_check_state next_status = compare_versions(latest_tag, VERSION) > 0
+					? version_check_state::update_available
+					: version_check_state::up_to_date;
+				version_status.store(next_status, std::memory_order_release);
+			}
+			catch (...)
 			{
 				version_status.store(version_check_state::failed, std::memory_order_release);
-				return;
 			}
+		});
+	}
 
-			{
-				std::scoped_lock lock(version_mutex);
-				latest_release_tag = latest_tag;
-			}
+	void finalize_version_check_task()
+	{
+		if (!version_check_task.valid())
+		{
+			return;
+		}
 
-			const version_check_state next_status = compare_versions(latest_tag, VERSION) > 0
-				? version_check_state::update_available
-				: version_check_state::up_to_date;
-			version_status.store(next_status, std::memory_order_release);
-		}).detach();
+		if (version_status.load(std::memory_order_acquire) == version_check_state::checking)
+		{
+			return;
+		}
+
+		version_check_task.wait();
 	}
 
 	bool has_newer_release_available()
@@ -443,6 +467,7 @@ void menus::present()
 
 void menus::update()
 {
+	finalize_version_check_task();
 	ImGui::GetIO().MouseDrawCursor = !global::hide;
 
 	if (!global::hide)
@@ -474,11 +499,11 @@ void menus::main_menu_bar()
 		const float about_width = ImGui::CalcTextSize("About").x + style.FramePadding.x * 2.0f;
 		const bool show_version_update = has_newer_release_available();
 		const float version_update_width = show_version_update ? ImGui::CalcTextSize(kVersionUpdateLabel).x + style.ItemSpacing.x : 0.0f;
-      const float available_width = ImGui::GetContentRegionAvail().x;
+		const float available_width = ImGui::GetContentRegionAvail().x;
 		const float spacer_width = available_width - about_width - version_update_width;
 		if (spacer_width > 0.0f)
 		{
-          ImGui::Dummy(ImVec2(spacer_width, 0.0f));
+			ImGui::Dummy(ImVec2(spacer_width, 0.0f));
 			ImGui::SameLine();
 		}
 

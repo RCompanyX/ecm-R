@@ -14,7 +14,6 @@ This changelog tracks the tagged releases recorded in this repository.
 - Hotkey capture now suspends ECM-R hotkey execution until the new binding is confirmed or canceled.
 - Duplicate hotkey assignments are rejected in the overlay, and duplicate or invalid key entries are normalized back to safe defaults when the configuration is loaded.
 - Existing configurations now migrate the new `toggle_shuffle` and `toggle_repeat` entries automatically.
-- ECM-R now checks the latest GitHub release only once during startup and shows a red overlay notice next to `About` when a newer release is available.
 
 ### Documentation
 - Updated the README to document runtime hotkey rebinding, optional shuffle/repeat hotkeys, and `None` / `Unbound` key syntax.
