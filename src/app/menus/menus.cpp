@@ -9,16 +9,474 @@
 #include "audio/player.hpp"
 
 #include <array>
+#include <atomic>
+#include <cctype>
 #include <cfloat>
+#include <future>
+#include <mutex>
 #include <shellapi.h>
+#include <winhttp.h>
 
 namespace
 {
 	constexpr auto kRepositoryUrl = "https://github.com/RCompanyX/ecm-R";
 	constexpr auto kIssuesUrl = "https://github.com/RCompanyX/ecm-R/issues";
+	constexpr wchar_t kLatestReleaseHost[] = L"api.github.com";
+	constexpr wchar_t kReleaseListPath[] = L"/repos/RCompanyX/ecm-R/releases?per_page=10";
+	constexpr char kStableVersionUpdateLabel[] = "New stable release available";
+	constexpr char kTestingVersionUpdateLabel[] = "New testing pre-release available";
 	input::hotkey_action hotkey_menu_feedback_action = input::hotkey_action::count;
 	std::string hotkey_menu_feedback_message;
 	bool hotkey_menu_feedback_is_error = false;
+	enum class release_discovery_policy
+	{
+		latest_published,
+		latest_non_draft,
+		latest_stable,
+	};
+	enum class version_check_state
+	{
+		idle,
+		checking,
+		up_to_date,
+		update_available,
+		failed,
+	};
+	constexpr release_discovery_policy kReleaseDiscoveryPolicy = release_discovery_policy::latest_non_draft;
+	std::atomic<version_check_state> version_status = version_check_state::idle;
+	std::once_flag version_check_once;
+	std::mutex version_mutex;
+	std::future<void> version_check_task;
+
+	struct github_release_info
+	{
+		std::string tag_name;
+		bool draft = false;
+		bool prerelease = false;
+	};
+
+	github_release_info latest_release_info;
+
+	struct parsed_version
+	{
+		std::array<int, 3> numbers{ 0, 0, 0 };
+		std::string prerelease;
+		bool has_numeric_component = false;
+	};
+
+	using winhttp_open_fn = HINTERNET(WINAPI*)(LPCWSTR, DWORD, LPCWSTR, LPCWSTR, DWORD);
+	using winhttp_connect_fn = HINTERNET(WINAPI*)(HINTERNET, LPCWSTR, INTERNET_PORT, DWORD);
+	using winhttp_open_request_fn = HINTERNET(WINAPI*)(HINTERNET, LPCWSTR, LPCWSTR, LPCWSTR, LPCWSTR, LPCWSTR*, DWORD);
+	using winhttp_send_request_fn = BOOL(WINAPI*)(HINTERNET, LPCWSTR, DWORD, LPVOID, DWORD, DWORD, DWORD_PTR);
+	using winhttp_receive_response_fn = BOOL(WINAPI*)(HINTERNET, LPVOID);
+	using winhttp_query_data_available_fn = BOOL(WINAPI*)(HINTERNET, LPDWORD);
+	using winhttp_read_data_fn = BOOL(WINAPI*)(HINTERNET, LPVOID, DWORD, LPDWORD);
+	using winhttp_set_timeouts_fn = BOOL(WINAPI*)(HINTERNET, int, int, int, int);
+	using winhttp_close_handle_fn = BOOL(WINAPI*)(HINTERNET);
+
+	parsed_version parse_version_string(std::string version)
+	{
+		version.erase(version.begin(), std::find_if(version.begin(), version.end(), [](const unsigned char ch)
+		{
+			return !std::isspace(ch);
+		}));
+		version.erase(std::find_if(version.rbegin(), version.rend(), [](const unsigned char ch)
+		{
+			return !std::isspace(ch);
+		}).base(), version.end());
+
+		if (!version.empty() && (version.front() == 'v' || version.front() == 'V'))
+		{
+			version.erase(version.begin());
+		}
+
+		parsed_version result;
+		std::size_t cursor = 0;
+		std::size_t numeric_index = 0;
+		while (cursor < version.size() && numeric_index < result.numbers.size())
+		{
+			if (!std::isdigit(static_cast<unsigned char>(version[cursor])))
+			{
+				break;
+			}
+
+			const std::size_t start = cursor;
+			while (cursor < version.size() && std::isdigit(static_cast<unsigned char>(version[cursor])))
+			{
+				++cursor;
+			}
+
+			result.numbers[numeric_index++] = std::stoi(version.substr(start, cursor - start));
+			result.has_numeric_component = true;
+
+			if (cursor < version.size() && version[cursor] == '.')
+			{
+				++cursor;
+				continue;
+			}
+
+			break;
+		}
+
+		if (cursor < version.size() && version[cursor] == '-')
+		{
+			result.prerelease = version.substr(cursor + 1);
+		}
+		else if (cursor < version.size())
+		{
+			result.prerelease = version.substr(cursor);
+		}
+
+		return result;
+	}
+
+	int compare_versions(const std::string& lhs, const std::string& rhs)
+	{
+		const parsed_version left = parse_version_string(lhs);
+		const parsed_version right = parse_version_string(rhs);
+
+		if (!left.has_numeric_component || !right.has_numeric_component)
+		{
+			if (lhs == rhs)
+			{
+				return 0;
+			}
+
+			return lhs < rhs ? -1 : 1;
+		}
+
+		for (std::size_t i = 0; i < left.numbers.size(); ++i)
+		{
+			if (left.numbers[i] != right.numbers[i])
+			{
+				return left.numbers[i] < right.numbers[i] ? -1 : 1;
+			}
+		}
+
+		if (left.prerelease == right.prerelease)
+		{
+			return 0;
+		}
+
+		if (left.prerelease.empty())
+		{
+			return 1;
+		}
+
+		if (right.prerelease.empty())
+		{
+			return -1;
+		}
+
+		return left.prerelease < right.prerelease ? -1 : 1;
+	}
+
+	bool try_extract_json_string_field(const std::string& source, const char* key, std::string& value)
+	{
+		const std::size_t key_pos = source.find(key);
+		if (key_pos == std::string::npos)
+		{
+			return false;
+		}
+
+		const std::size_t colon_pos = source.find(':', key_pos);
+		if (colon_pos == std::string::npos)
+		{
+			return false;
+		}
+
+		const std::size_t value_start = source.find('"', colon_pos + 1);
+		if (value_start == std::string::npos)
+		{
+			return false;
+		}
+
+		std::string extracted_value;
+		for (std::size_t cursor = value_start + 1; cursor < source.size(); ++cursor)
+		{
+			const char current = source[cursor];
+			if (current == '\\')
+			{
+				if (cursor + 1 >= source.size())
+				{
+					return false;
+				}
+
+				extracted_value.push_back(source[cursor + 1]);
+				++cursor;
+				continue;
+			}
+
+			if (current == '"')
+			{
+				value = extracted_value;
+				return true;
+			}
+
+			extracted_value.push_back(current);
+		}
+
+		return false;
+	}
+
+	bool try_extract_json_bool_field(const std::string& source, const char* key, bool& value)
+	{
+		const std::size_t key_pos = source.find(key);
+		if (key_pos == std::string::npos)
+		{
+			return false;
+		}
+
+		const std::size_t colon_pos = source.find(':', key_pos);
+		if (colon_pos == std::string::npos)
+		{
+			return false;
+		}
+
+		const std::size_t value_pos = source.find_first_not_of(" \t\r\n", colon_pos + 1);
+		if (value_pos == std::string::npos)
+		{
+			return false;
+		}
+
+		if (source.compare(value_pos, 4, "true") == 0)
+		{
+			value = true;
+			return true;
+		}
+
+		if (source.compare(value_pos, 5, "false") == 0)
+		{
+			value = false;
+			return true;
+		}
+
+		return false;
+	}
+
+	std::vector<github_release_info> parse_release_list(const std::string& response_body)
+	{
+		std::vector<github_release_info> releases;
+		std::size_t search_pos = 0;
+
+		while ((search_pos = response_body.find("\"tag_name\"", search_pos)) != std::string::npos)
+		{
+			const std::size_t body_pos = response_body.find("\"body\"", search_pos);
+			if (body_pos == std::string::npos)
+			{
+				break;
+			}
+
+			const std::string release_segment = response_body.substr(search_pos, body_pos - search_pos);
+			github_release_info release;
+			if (try_extract_json_string_field(release_segment, "\"tag_name\"", release.tag_name) &&
+				try_extract_json_bool_field(release_segment, "\"draft\"", release.draft) &&
+				try_extract_json_bool_field(release_segment, "\"prerelease\"", release.prerelease))
+			{
+				releases.push_back(std::move(release));
+			}
+
+			search_pos = body_pos;
+		}
+
+		return releases;
+	}
+
+	bool release_matches_discovery_policy(const github_release_info& release)
+	{
+		switch (kReleaseDiscoveryPolicy)
+		{
+		case release_discovery_policy::latest_published:
+			return true;
+
+		case release_discovery_policy::latest_non_draft:
+			return !release.draft;
+
+		case release_discovery_policy::latest_stable:
+			return !release.draft && !release.prerelease;
+		}
+
+		return false;
+	}
+
+	github_release_info extract_latest_release_info(const std::string& response_body)
+	{
+		for (const github_release_info& release : parse_release_list(response_body))
+		{
+			if (release_matches_discovery_policy(release))
+			{
+				return release;
+			}
+		}
+
+		return {};
+	}
+
+	const char* version_update_label(const github_release_info& release)
+	{
+		return release.prerelease ? kTestingVersionUpdateLabel : kStableVersionUpdateLabel;
+	}
+
+	const char* latest_release_tooltip_label(const github_release_info& release)
+	{
+		return release.prerelease ? "Latest testing pre-release" : "Latest stable release";
+	}
+
+	std::string fetch_release_list_response()
+	{
+		HMODULE winhttp_module = LoadLibraryW(L"winhttp.dll");
+		if (winhttp_module == nullptr)
+		{
+			return {};
+		}
+
+		const auto winhttp_open = reinterpret_cast<winhttp_open_fn>(GetProcAddress(winhttp_module, "WinHttpOpen"));
+		const auto winhttp_connect = reinterpret_cast<winhttp_connect_fn>(GetProcAddress(winhttp_module, "WinHttpConnect"));
+		const auto winhttp_open_request = reinterpret_cast<winhttp_open_request_fn>(GetProcAddress(winhttp_module, "WinHttpOpenRequest"));
+		const auto winhttp_send_request = reinterpret_cast<winhttp_send_request_fn>(GetProcAddress(winhttp_module, "WinHttpSendRequest"));
+		const auto winhttp_receive_response = reinterpret_cast<winhttp_receive_response_fn>(GetProcAddress(winhttp_module, "WinHttpReceiveResponse"));
+		const auto winhttp_query_data_available = reinterpret_cast<winhttp_query_data_available_fn>(GetProcAddress(winhttp_module, "WinHttpQueryDataAvailable"));
+		const auto winhttp_read_data = reinterpret_cast<winhttp_read_data_fn>(GetProcAddress(winhttp_module, "WinHttpReadData"));
+		const auto winhttp_set_timeouts = reinterpret_cast<winhttp_set_timeouts_fn>(GetProcAddress(winhttp_module, "WinHttpSetTimeouts"));
+		const auto winhttp_close_handle = reinterpret_cast<winhttp_close_handle_fn>(GetProcAddress(winhttp_module, "WinHttpCloseHandle"));
+		if (winhttp_open == nullptr || winhttp_connect == nullptr || winhttp_open_request == nullptr ||
+			winhttp_send_request == nullptr || winhttp_receive_response == nullptr ||
+			winhttp_query_data_available == nullptr || winhttp_read_data == nullptr ||
+			winhttp_set_timeouts == nullptr || winhttp_close_handle == nullptr)
+		{
+			FreeLibrary(winhttp_module);
+			return {};
+		}
+
+		std::string response_body;
+		HINTERNET session = winhttp_open(L"ECM-R Version Check/1.0", WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
+		HINTERNET connection = nullptr;
+		HINTERNET request = nullptr;
+
+		if (session != nullptr)
+		{
+			winhttp_set_timeouts(session, 3000, 3000, 3000, 3000);
+			connection = winhttp_connect(session, kLatestReleaseHost, INTERNET_DEFAULT_HTTPS_PORT, 0);
+		}
+
+		if (connection != nullptr)
+		{
+			static const wchar_t* accept_types[] = { L"*/*", nullptr };
+			request = winhttp_open_request(connection, L"GET", kReleaseListPath, nullptr, WINHTTP_NO_REFERER, accept_types, WINHTTP_FLAG_SECURE);
+		}
+
+		if (request != nullptr)
+		{
+			const wchar_t* headers = L"Accept: application/vnd.github+json\r\nX-GitHub-Api-Version: 2022-11-28\r\n";
+			if (winhttp_send_request(request, headers, -1L, WINHTTP_NO_REQUEST_DATA, 0, 0, 0) &&
+				winhttp_receive_response(request, nullptr))
+			{
+				DWORD bytes_available = 0;
+				while (winhttp_query_data_available(request, &bytes_available) && bytes_available > 0)
+				{
+					std::string chunk(bytes_available, '\0');
+					DWORD bytes_read = 0;
+					if (!winhttp_read_data(request, chunk.data(), bytes_available, &bytes_read))
+					{
+						response_body.clear();
+						break;
+					}
+
+					chunk.resize(bytes_read);
+					response_body += chunk;
+					bytes_available = 0;
+				}
+			}
+		}
+
+		if (request != nullptr)
+		{
+			winhttp_close_handle(request);
+		}
+
+		if (connection != nullptr)
+		{
+			winhttp_close_handle(connection);
+		}
+
+		if (session != nullptr)
+		{
+			winhttp_close_handle(session);
+		}
+
+		FreeLibrary(winhttp_module);
+		return response_body;
+	}
+
+	void run_version_check_once()
+	{
+		version_status.store(version_check_state::checking, std::memory_order_release);
+		version_check_task = std::async(std::launch::async, []()
+		{
+			try
+			{
+				const github_release_info latest_release = extract_latest_release_info(fetch_release_list_response());
+				if (latest_release.tag_name.empty())
+				{
+					version_status.store(version_check_state::failed, std::memory_order_release);
+					return;
+				}
+
+				{
+					std::scoped_lock lock(version_mutex);
+					latest_release_info = latest_release;
+				}
+
+				const version_check_state next_status = compare_versions(latest_release.tag_name, VERSION) > 0
+					? version_check_state::update_available
+					: version_check_state::up_to_date;
+				version_status.store(next_status, std::memory_order_release);
+			}
+			catch (...)
+			{
+				version_status.store(version_check_state::failed, std::memory_order_release);
+			}
+		});
+	}
+
+	void finalize_version_check_task()
+	{
+		if (!version_check_task.valid())
+		{
+			return;
+		}
+
+		if (version_status.load(std::memory_order_acquire) == version_check_state::checking)
+		{
+			return;
+		}
+
+		version_check_task.wait();
+	}
+
+	bool has_newer_release_available()
+	{
+		return version_status.load(std::memory_order_acquire) == version_check_state::update_available;
+	}
+
+	github_release_info current_latest_release_info()
+	{
+		std::scoped_lock lock(version_mutex);
+		return latest_release_info;
+	}
+
+	void draw_new_version_badge(const github_release_info& release)
+	{
+		const ImVec4 update_color(0.92f, 0.25f, 0.25f, 1.0f);
+		ImGui::TextColored(update_color, "%s", version_update_label(release));
+		if (ImGui::IsItemHovered())
+		{
+			if (!release.tag_name.empty())
+			{
+				ImGui::SetTooltip("%s: %s", latest_release_tooltip_label(release), release.tag_name.c_str());
+			}
+		}
+	}
 
 	void clear_hotkey_menu_feedback()
 	{
@@ -108,6 +566,7 @@ void menus::init()
 	ImGui::GetIO().IniFilename = nullptr;
 
 	menus::build_font(ImGui::GetIO());
+	std::call_once(version_check_once, run_version_check_once);
 }
 
 void menus::prepare()
@@ -162,6 +621,7 @@ void menus::present()
 
 void menus::update()
 {
+	finalize_version_check_task();
 	ImGui::GetIO().MouseDrawCursor = !global::hide;
 
 	if (!global::hide)
@@ -191,11 +651,20 @@ void menus::main_menu_bar()
 
 		const ImGuiStyle& style = ImGui::GetStyle();
 		const float about_width = ImGui::CalcTextSize("About").x + style.FramePadding.x * 2.0f;
-     const float available_width = ImGui::GetContentRegionAvail().x;
-		const float spacer_width = available_width - about_width;
+		const github_release_info latest_release = current_latest_release_info();
+		const bool show_version_update = has_newer_release_available() && !latest_release.tag_name.empty();
+		const float version_update_width = show_version_update ? ImGui::CalcTextSize(version_update_label(latest_release)).x + style.ItemSpacing.x : 0.0f;
+		const float available_width = ImGui::GetContentRegionAvail().x;
+		const float spacer_width = available_width - about_width - version_update_width;
 		if (spacer_width > 0.0f)
 		{
-         ImGui::Dummy(ImVec2(spacer_width, 0.0f));
+			ImGui::Dummy(ImVec2(spacer_width, 0.0f));
+			ImGui::SameLine();
+		}
+
+		if (show_version_update)
+		{
+			draw_new_version_badge(latest_release);
 			ImGui::SameLine();
 		}
 

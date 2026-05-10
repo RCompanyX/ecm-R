@@ -4,6 +4,22 @@ All notable changes to ECM-R are documented in this file.
 
 This changelog tracks the tagged releases recorded in this repository.
 
+## [v0.5.10-alpha] - 2026-05-10
+
+### Added
+- Added a startup-only overlay release notice beside `About` when GitHub reports a newer non-draft release.
+- Added explicit `stable release` versus `testing pre-release` wording in the release notice and its tooltip.
+
+### Changed
+- Release discovery now reads the GitHub releases list instead of `/releases/latest`, which keeps the repository's published pre-release flow visible.
+- The version check now runs once during overlay initialization on an asynchronous task instead of being tied to per-frame UI updates.
+- Short WinHTTP timeouts keep unreachable networks from blocking the overlay, and failed checks stay silent by hiding the release notice.
+- Version comparison now considers numeric components and prerelease suffixes before surfacing a newer tag.
+
+### Documentation
+- Updated the README to document the startup release notice and its stable/testing wording.
+- Added release notes for `v0.5.10-alpha`.
+
 ## [v0.5.9-alpha] - 2026-05-10
 
 ### Changed
@@ -163,3 +179,4 @@ This changelog tracks the tagged releases recorded in this repository.
 [v0.5.7-alpha]: https://github.com/RCompanyX/ecm/releases/tag/v0.5.7-alpha
 [v0.5.8-alpha]: https://github.com/RCompanyX/ecm/releases/tag/v0.5.8-alpha
 [v0.5.9-alpha]: https://github.com/RCompanyX/ecm-R/releases/tag/v0.5.9-alpha
+[v0.5.10-alpha]: https://github.com/RCompanyX/ecm-R/releases/tag/v0.5.10-alpha
