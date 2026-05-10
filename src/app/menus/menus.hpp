@@ -16,6 +16,7 @@ private:
 
 	static void main_menu_bar();
 	static void actions();
+	static void hotkeys();
 	static void about();
 	static void playlist();
 };

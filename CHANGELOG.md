@@ -2,7 +2,22 @@
 
 All notable changes to ECM-R are documented in this file.
 
-This changelog currently tracks the tagged releases recorded in this repository.
+This changelog tracks the tagged releases recorded in this repository.
+
+## [v0.5.8-alpha] - 2026-05-10
+
+### Added
+- Added a `Hotkeys` overlay menu for runtime rebinding of `toggle_overlay`, `pause_track`, `previous_track`, `skip_track`, `toggle_shuffle`, and `toggle_repeat`.
+- Added keyboard hotkeys for shuffle and repeat toggles, both disabled by default through `toggle_shuffle = None` and `toggle_repeat = None`.
+
+### Changed
+- Hotkey capture now suspends ECM-R hotkey execution until the new binding is confirmed or canceled.
+- Duplicate hotkey assignments are rejected in the overlay, and duplicate or invalid key entries are normalized back to safe defaults when the configuration is loaded.
+- Existing configurations now migrate the new `toggle_shuffle` and `toggle_repeat` entries automatically.
+
+### Documentation
+- Updated the README to document runtime hotkey rebinding, optional shuffle/repeat hotkeys, and `None` / `Unbound` key syntax.
+- Updated the configuration manual to document the new `[keys]` entries, duplicate-binding rules, and hotkey capture behavior.
 
 ## [v0.5.7-alpha] - 2026-05-05
 
@@ -135,3 +150,4 @@ This changelog currently tracks the tagged releases recorded in this repository.
 [v0.5.5-alpha]: https://github.com/RCompanyX/ecm/releases/tag/v0.5.5-alpha
 [v0.5.6-alpha]: https://github.com/RCompanyX/ecm/releases/tag/v0.5.6-alpha
 [v0.5.7-alpha]: https://github.com/RCompanyX/ecm/releases/tag/v0.5.7-alpha
+[v0.5.8-alpha]: https://github.com/RCompanyX/ecm/releases/tag/v0.5.8-alpha

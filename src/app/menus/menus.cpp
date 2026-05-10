@@ -4,9 +4,11 @@
 #include "menus.hpp"
 #include "audio/audio.hpp"
 #include "hook/hook.hpp"
+#include "input/input.hpp"
 #include "settings/settings.hpp"
 #include "audio/player.hpp"
 
+#include <array>
 #include <cfloat>
 #include <shellapi.h>
 
@@ -14,6 +16,79 @@ namespace
 {
 	constexpr auto kRepositoryUrl = "https://github.com/RCompanyX/ecm-R";
 	constexpr auto kIssuesUrl = "https://github.com/RCompanyX/ecm-R/issues";
+	input::hotkey_action hotkey_menu_feedback_action = input::hotkey_action::count;
+	std::string hotkey_menu_feedback_message;
+	bool hotkey_menu_feedback_is_error = false;
+
+	void clear_hotkey_menu_feedback()
+	{
+		hotkey_menu_feedback_action = input::hotkey_action::count;
+		hotkey_menu_feedback_message.clear();
+		hotkey_menu_feedback_is_error = false;
+	}
+
+	void set_hotkey_menu_feedback(const input::hotkey_action action, const std::string& message, const bool is_error)
+	{
+		hotkey_menu_feedback_action = action;
+		hotkey_menu_feedback_message = message;
+		hotkey_menu_feedback_is_error = is_error;
+	}
+
+	bool apply_hotkey_change(const input::hotkey_binding& binding, const std::uint32_t key, std::string& error_message)
+	{
+		const std::uint32_t previous_key = *binding.runtime_key;
+		if (!input::assign_hotkey(binding.action, key, &error_message))
+		{
+			return false;
+		}
+
+		if (!settings::save_hotkey_binding(binding.ini_key, *binding.runtime_key))
+		{
+			input::assign_hotkey(binding.action, previous_key);
+			error_message = "Failed to save the hotkey in the INI file.";
+			return false;
+		}
+
+		return true;
+	}
+
+	bool reset_all_hotkeys_with_persistence(std::string& error_message)
+	{
+		std::array<std::uint32_t, input::hotkey_count> previous_keys{};
+		std::size_t index = 0;
+		for (const auto& binding : input::hotkey_bindings())
+		{
+			previous_keys[index++] = *binding.runtime_key;
+		}
+
+		input::reset_all_hotkeys();
+		if (settings::save_all_hotkey_bindings())
+		{
+			return true;
+		}
+
+		index = 0;
+		for (const auto& binding : input::hotkey_bindings())
+		{
+			input::assign_hotkey(binding.action, previous_keys[index++]);
+		}
+
+		error_message = "Failed to save the default hotkeys in the INI file.";
+		return false;
+	}
+
+	const char* hotkey_label_for_action(const input::hotkey_action action)
+	{
+		for (const auto& binding : input::hotkey_bindings())
+		{
+			if (binding.action == action)
+			{
+				return binding.label;
+			}
+		}
+
+		return nullptr;
+	}
 
 	void open_external_link(const char* url)
 	{
@@ -107,6 +182,7 @@ void menus::main_menu_bar()
 	if (ImGui::BeginMainMenuBar())
 	{
 		menus::actions();
+		menus::hotkeys();
 		menus::playlist();
 
 		ImGui::Text(logger::va("Listening: %s on %s", audio::currently_playing.title.c_str(), audio::playlist_name.c_str()).c_str());
@@ -138,12 +214,7 @@ void menus::actions()
 
 		auto save_volume_setting = [](const char* key, const int value)
 		{
-			if (ini_t* config = ini_load(settings::config_file.c_str()))
-			{
-				ini_set(config, "core", key, std::to_string(value).c_str());
-				ini_save(config, settings::config_file.c_str());
-				ini_free(config);
-			}
+			settings::save_core_integer(key, value);
 		};
 
 		auto draw_volume_slider = [&](const char* label, std::int32_t& value, const char* config_key)
@@ -187,43 +258,19 @@ void menus::actions()
 
 		if (ImGui::Button("Skip"))
 		{
-         if (audio::playing)
-			{
-				audio::stop(0);
-				audio::play_next_song();
-			}
-			else if (!audio::paused)
-			{
-				audio::play_next_song();
-			}
+			audio::skip_to_next_track();
 		}
 
 		bool shuffle_enabled = audio::shuffle_enabled;
 		if (ImGui::Checkbox("Shuffle", &shuffle_enabled))
 		{
-			audio::shuffle_enabled = shuffle_enabled;
-			audio::create_playlist_order();
-			audio::current_song_index = -1;
-
-			if (ini_t* config = ini_load(settings::config_file.c_str()))
-			{
-				ini_set(config, "config", "shuffle_enabled", audio::shuffle_enabled ? "true" : "false");
-				ini_save(config, settings::config_file.c_str());
-				ini_free(config);
-			}
+			audio::set_shuffle_enabled(shuffle_enabled);
 		}
 
 		bool repeat_enabled = audio::repeat_enabled;
 		if (ImGui::Checkbox("Repeat", &repeat_enabled))
 		{
-			audio::repeat_enabled = repeat_enabled;
-
-			if (ini_t* config = ini_load(settings::config_file.c_str()))
-			{
-				ini_set(config, "config", "repeat_enabled", audio::repeat_enabled ? "true" : "false");
-				ini_save(config, settings::config_file.c_str());
-				ini_free(config);
-			}
+			audio::set_repeat_enabled(repeat_enabled);
 		}
 
 		ImGui::Text("Mode: %s", audio::shuffle_enabled ? "Random" : "Sequential");
@@ -235,6 +282,156 @@ void menus::actions()
 
 		ImGui::EndMenu();
 	}
+}
+
+void menus::hotkeys()
+{
+	if (!ImGui::BeginMenu("Hotkeys"))
+	{
+		return;
+	}
+
+	const bool capture_active = input::is_hotkey_capture_active();
+	const input::hotkey_action capture_action = input::captured_hotkey_action();
+	const input::hotkey_action capture_feedback_action = input::capture_feedback_action();
+	const char* capture_feedback_message = input::capture_feedback_message();
+	const bool has_capture_feedback = capture_feedback_message && capture_feedback_message[0] != '\0';
+	const char* capture_label = capture_active ? hotkey_label_for_action(capture_action) : nullptr;
+	const ImVec4 error_color(0.90f, 0.35f, 0.35f, 1.0f);
+	const ImVec4 success_color(0.40f, 0.78f, 0.40f, 1.0f);
+
+	ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + 420.0f);
+	if (audio::are_hotkeys_locked())
+	{
+		ImGui::TextWrapped("ECM-R hotkeys stay locked until the first startup chyron has appeared and disappeared once.");
+	}
+	else
+	{
+		ImGui::TextWrapped("ECM-R hotkeys are ready. Supported keys: %s.", input::supported_key_help());
+	}
+	ImGui::TextWrapped("While capture is active, ECM-R suspends hotkey execution so the candidate key does not trigger playback, overlay, shuffle, or repeat actions.");
+	if (capture_label)
+	{
+		ImGui::TextWrapped("Capturing binding for: %s", capture_label);
+	}
+	ImGui::PopTextWrapPos();
+	ImGui::Spacing();
+
+	for (const auto& binding : input::hotkey_bindings())
+	{
+		ImGui::PushID(static_cast<int>(binding.action));
+		const bool capturing_this = capture_active && capture_action == binding.action;
+		const std::string current_key = input::key_to_string(*binding.runtime_key);
+		const bool show_capture_feedback = capture_feedback_action == binding.action && has_capture_feedback;
+		const bool show_menu_feedback = hotkey_menu_feedback_action == binding.action && !hotkey_menu_feedback_message.empty();
+
+		ImGui::Separator();
+		ImGui::Text("%s", binding.label);
+		ImGui::SameLine(230.0f);
+		ImGui::Text("%s", current_key.c_str());
+
+		if (capturing_this)
+		{
+			ImGui::TextWrapped("Press a supported key to bind this action.");
+			if (ImGui::Button("Cancel"))
+			{
+				input::cancel_hotkey_capture();
+			}
+		}
+		else if (!capture_active)
+		{
+			if (ImGui::Button("Rebind"))
+			{
+				clear_hotkey_menu_feedback();
+				input::begin_hotkey_capture(binding.action);
+			}
+
+			if (binding.action != input::hotkey_action::toggle_overlay)
+			{
+				ImGui::SameLine();
+				if (ImGui::Button("Clear"))
+				{
+					std::string error_message;
+					input::clear_capture_feedback();
+					if (apply_hotkey_change(binding, input::unbound_key, error_message))
+					{
+						set_hotkey_menu_feedback(binding.action, "Binding cleared.", false);
+					}
+					else
+					{
+						set_hotkey_menu_feedback(binding.action, error_message, true);
+					}
+				}
+			}
+
+			ImGui::SameLine();
+			if (ImGui::Button("Reset"))
+			{
+				std::string error_message;
+				input::clear_capture_feedback();
+				if (apply_hotkey_change(binding, binding.default_key, error_message))
+				{
+					set_hotkey_menu_feedback(binding.action, std::string("Reset to ") + input::key_to_string(binding.default_key) + ".", false);
+				}
+				else
+				{
+					set_hotkey_menu_feedback(binding.action, error_message, true);
+				}
+			}
+		}
+		else
+		{
+			ImGui::TextDisabled("Capture in progress...");
+		}
+
+		if (binding.action == input::hotkey_action::toggle_overlay && *binding.runtime_key == input::unbound_key)
+		{
+			ImGui::TextColored(error_color, "Overlay is currently unbound. Rebind it before closing this menu.");
+		}
+
+		if (show_capture_feedback)
+		{
+			ImGui::TextColored(input::capture_feedback_is_error() ? error_color : success_color, "%s", capture_feedback_message);
+		}
+		else if (show_menu_feedback)
+		{
+			ImGui::TextColored(hotkey_menu_feedback_is_error ? error_color : success_color, "%s", hotkey_menu_feedback_message.c_str());
+		}
+
+		ImGui::PopID();
+	}
+
+	ImGui::Separator();
+	if (!capture_active)
+	{
+		if (ImGui::Button("Reset All"))
+		{
+			std::string error_message;
+			input::clear_capture_feedback();
+			if (reset_all_hotkeys_with_persistence(error_message))
+			{
+				set_hotkey_menu_feedback(input::hotkey_action::count, "All hotkeys reset to their defaults.", false);
+			}
+			else
+			{
+				set_hotkey_menu_feedback(input::hotkey_action::count, error_message, true);
+			}
+		}
+	}
+	else
+	{
+		ImGui::TextDisabled("Finish or cancel the active capture before resetting all bindings.");
+	}
+
+	ImGui::SameLine();
+	ImGui::TextUnformatted("Shuffle and Repeat start as None by default.");
+
+	if (hotkey_menu_feedback_action == input::hotkey_action::count && !hotkey_menu_feedback_message.empty())
+	{
+		ImGui::TextColored(hotkey_menu_feedback_is_error ? error_color : success_color, "%s", hotkey_menu_feedback_message.c_str());
+	}
+
+	ImGui::EndMenu();
 }
 
 void menus::about()

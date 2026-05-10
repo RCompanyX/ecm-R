@@ -6,6 +6,7 @@
 #include "player.hpp"
 #include "fs/fs.hpp"
 #include "hook/hook.hpp"
+#include "settings/settings.hpp"
 #include "defs.hpp"
 
 #include <algorithm>
@@ -639,6 +640,53 @@ void audio::play_next_song()
 void audio::play_previous_song()
 {
     play_relative_song(-1);
+}
+
+void audio::skip_to_next_track()
+{
+	if (audio::playing)
+	{
+		audio::stop(0);
+		audio::play_next_song();
+	}
+	else if (!audio::paused)
+	{
+		audio::play_next_song();
+	}
+}
+
+void audio::set_shuffle_enabled(const bool enabled)
+{
+	if (audio::shuffle_enabled == enabled)
+	{
+		return;
+	}
+
+	audio::shuffle_enabled = enabled;
+	audio::create_playlist_order();
+	audio::current_song_index = -1;
+	settings::save_config_boolean("shuffle_enabled", audio::shuffle_enabled);
+}
+
+void audio::toggle_shuffle_enabled()
+{
+	audio::set_shuffle_enabled(!audio::shuffle_enabled);
+}
+
+void audio::set_repeat_enabled(const bool enabled)
+{
+	if (audio::repeat_enabled == enabled)
+	{
+		return;
+	}
+
+	audio::repeat_enabled = enabled;
+	settings::save_config_boolean("repeat_enabled", audio::repeat_enabled);
+}
+
+void audio::toggle_repeat_enabled()
+{
+	audio::set_repeat_enabled(!audio::repeat_enabled);
 }
 
 void audio::request_current_chyron()

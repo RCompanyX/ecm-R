@@ -27,7 +27,12 @@ public:
 	static void apply_current_context_volume();
 	static void play_next_song();
    static void play_previous_song();
+	static void skip_to_next_track();
 	static void toggle_manual_pause();
+	static void set_shuffle_enabled(bool enabled);
+	static void toggle_shuffle_enabled();
+	static void set_repeat_enabled(bool enabled);
+	static void toggle_repeat_enabled();
 	static bool can_resume_current_song();
 	static void pause();
 	static void play();

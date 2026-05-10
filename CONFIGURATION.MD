@@ -24,6 +24,8 @@ toggle_overlay = F11
 pause_track = F8
 previous_track = F9
 skip_track = F10
+toggle_shuffle = None
+toggle_repeat = None
 
 [trax]
 song1.mp3 = ALL
@@ -113,11 +115,14 @@ The `[config]` section accepts these values:
 ## `[keys]` Settings
 
 - ECM-R hotkeys remain locked during the first startup music banner and unlock automatically after that first chyron has been shown and dismissed once.
+- The overlay `Hotkeys` menu applies and saves runtime binding changes immediately.
+- Use `None` or `Unbound` to leave a binding disabled.
 
 ### `toggle_overlay`
 
 - Key used to show or hide the in-game overlay.
 - Default value: `F11`.
+- The overlay UI does not offer a `Clear` button for this action, so you do not accidentally strand yourself without a way to reopen the menu.
 
 ### `previous_track`
 
@@ -136,6 +141,18 @@ The `[config]` section accepts these values:
 - Key used to jump to the next song.
 - Default value: `F10`.
 
+### `toggle_shuffle`
+
+- Key used to toggle shuffle mode from the keyboard.
+- Default value: `None`.
+- When enabled from the keyboard, ECM-R uses the same runtime behavior as the overlay checkbox: it updates `shuffle_enabled`, rebuilds the playlist order, and resets the current playlist index.
+
+### `toggle_repeat`
+
+- Key used to toggle repeat mode from the keyboard.
+- Default value: `None`.
+- This action uses the same runtime behavior as the overlay checkbox and persists the updated repeat state immediately.
+
 ### Supported key values
 
 ECM-R accepts:
@@ -144,8 +161,9 @@ ECM-R accepts:
 - Letters such as `A` to `Z`
 - Digits such as `0` to `9`
 - Named keys such as `Space`, `Tab`, `Enter`, `Esc`, `Escape`, `Backspace`, `Insert`, `Delete`, `Home`, `End`, `PageUp`, `PageDown`, `Up`, `Down`, `Left`, and `Right`
+- `None` or `Unbound` for an explicit disabled state
 
-If a key value is invalid, ECM-R falls back to the built-in default for that action.
+If a key value is invalid or duplicates another ECM-R action, ECM-R restores that action to its built-in default on the next load. Duplicate assignments are rejected directly in the overlay.
 
 ## `[trax]` Settings
 
@@ -162,8 +180,9 @@ Invalid or missing values fall back to `ALL`.
 
 ## Behavior Notes
 
-- Changes made from the overlay to shuffle, repeat, or volume settings are saved back to `ecm-r.x86.ini` automatically.
+- Changes made from the overlay to shuffle, repeat, volume, or hotkey settings are saved back to `ecm-r.x86.ini` automatically.
 - Manual pause state is not persisted across game restarts.
+- While the `Hotkeys` menu is waiting for a new binding, ECM-R suspends all ECM-R hotkey actions until the user binds a key or clicks `Cancel`.
 - While manual pause is active, the in-game chyron is hidden and is shown again when playback resumes.
 - If a filename follows the format `Artist - Title.ext`, the overlay chyron uses that information when possible.
 - Supported playlist formats are `.wav`, `.mp1`, `.mp2`, `.mp3`, `.ogg`, and `.aif`.

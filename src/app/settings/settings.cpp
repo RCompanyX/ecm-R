@@ -65,6 +65,25 @@ namespace
 		return std::string("version = \"") + VERSION + "\"";
 	}
 
+	bool save_ini_value(const char* section, const char* key, const std::string& value)
+	{
+		if (settings::config_file.empty())
+		{
+			return false;
+		}
+
+		ini_t* config = ini_load(settings::config_file.c_str());
+		if (!config)
+		{
+			return false;
+		}
+
+		ini_set(config, section, key, value.c_str());
+		const bool saved = ini_save(config, settings::config_file.c_str()) != 0;
+		ini_free(config);
+		return saved;
+	}
+
 	std::string build_volume_line(const char* key, const int volume)
 	{
 		return std::string(key) + " = \"" + std::to_string(volume) + "\"";
@@ -191,7 +210,7 @@ namespace
 		}
 	}
 
-  std::string build_config_text(const std::string& playlist, const int volume, const int frontend_volume, const int ingame_volume, const std::string& toggle_overlay, const std::string& pause_track, const std::string& skip_track, const std::string& previous_track, const bool stop_music_on_loading_screens, const bool shuffle_enabled, const bool repeat_enabled)
+	std::string build_config_text(const std::string& playlist, const int volume, const int frontend_volume, const int ingame_volume, const bool stop_music_on_loading_screens, const bool shuffle_enabled, const bool repeat_enabled)
 	{
 		std::ostringstream output;
 		output << "[core]\n";
@@ -205,11 +224,11 @@ namespace
 		output << build_repeat_enabled_line(repeat_enabled) << "\n";
 		output << build_stop_music_on_loading_screens_line(stop_music_on_loading_screens) << "\n\n";
 		output << "[keys]\n";
-		output << "toggle_overlay = " << toggle_overlay << "\n";
-      output << "pause_track = " << pause_track << "\n";
-      output << "previous_track = " << previous_track << "\n";
-		output << "skip_track = " << skip_track << "\n\n";
-		output << "[trax]\n";
+		for (const auto& binding : input::hotkey_bindings())
+		{
+			output << binding.ini_key << " = " << input::key_to_string(*binding.runtime_key) << "\n";
+		}
+		output << "\n[trax]\n";
 
 		for (const auto& song : audio::playlist_files)
 		{
@@ -244,30 +263,40 @@ void settings::update()
 			return;
 		}
 
-     const bool version_changed = std::strcmp(safe_ini_get(config, "core", "version", ""), VERSION) != 0;
-		const std::string toggle_overlay = safe_ini_get(config, "keys", "toggle_overlay", "F11");
-       const std::string pause_track = safe_ini_get(config, "keys", "pause_track", "F8");
-        const std::string skip_track = safe_ini_get(config, "keys", "skip_track", "F10");
-       const std::string previous_track = safe_ini_get(config, "keys", "previous_track", "F9");
-       const std::string legacy_volume = safe_ini_get(config, "core", "volume", "100");
+		const bool version_changed = std::strcmp(safe_ini_get(config, "core", "version", ""), VERSION) != 0;
+		const std::string legacy_volume = safe_ini_get(config, "core", "volume", "100");
 		const bool missing_stop_music_on_loading_screens = ini_get(config, "config", "stop_music_on_loading_screens") == nullptr;
 		const bool missing_shuffle_enabled = ini_get(config, "config", "shuffle_enabled") == nullptr;
 		const bool missing_repeat_enabled = ini_get(config, "config", "repeat_enabled") == nullptr;
-       const bool missing_pause_track = ini_get(config, "keys", "pause_track") == nullptr;
-		const bool missing_previous_track = ini_get(config, "keys", "previous_track") == nullptr;
 		const bool missing_frontend_volume = ini_get(config, "core", "frontend_volume") == nullptr;
 		const bool missing_ingame_volume = ini_get(config, "core", "ingame_volume") == nullptr;
+		bool missing_hotkey_entry = false;
+		bool invalid_hotkey_entry = false;
 
-       audio::volume = std::stoi(legacy_volume);
+		audio::volume = std::stoi(legacy_volume);
 		audio::frontend_volume = std::stoi(safe_ini_get(config, "core", "frontend_volume", legacy_volume.c_str()));
 		audio::ingame_volume = std::stoi(safe_ini_get(config, "core", "ingame_volume", legacy_volume.c_str()));
-     audio::shuffle_enabled = settings::get_boolean(safe_ini_get(config, "config", "shuffle_enabled", "true"));
+		audio::shuffle_enabled = settings::get_boolean(safe_ini_get(config, "config", "shuffle_enabled", "true"));
 		audio::repeat_enabled = settings::get_boolean(safe_ini_get(config, "config", "repeat_enabled", "true"));
 		audio::stop_music_on_loading_screens = settings::get_boolean(safe_ini_get(config, "config", "stop_music_on_loading_screens", "true"));
-		input::toggle_overlay_key = input::key_from_string(toggle_overlay.c_str(), VK_F11);
-     input::pause_track_key = input::key_from_string(pause_track.c_str(), VK_F8);
-		input::skip_track_key = input::key_from_string(skip_track.c_str(), VK_F10);
-		input::previous_track_key = input::key_from_string(previous_track.c_str(), VK_F9);
+		input::reset_all_hotkeys();
+		for (const auto& binding : input::hotkey_bindings())
+		{
+			const char* raw_value = ini_get(config, "keys", binding.ini_key);
+			const std::string default_key_text = input::key_to_string(binding.default_key);
+			const std::uint32_t parsed_key = input::key_from_string(raw_value ? raw_value : default_key_text.c_str(), binding.default_key);
+			std::string error_message;
+			if (!input::assign_hotkey(binding.action, parsed_key, &error_message))
+			{
+				input::reset_hotkey(binding.action);
+				invalid_hotkey_entry = true;
+			}
+
+			if (!raw_value)
+			{
+				missing_hotkey_entry = true;
+			}
+		}
 
 		audio::playlist_name = safe_ini_get(config, "core", "playlist", "Music");
 		audio::playlist_dir = audio::playlist_name;
@@ -282,17 +311,14 @@ void settings::update()
 			audio::playlist_files[i].second = normalize_trax_value(res);
 		}
 
-     if (version_changed || missing_stop_music_on_loading_screens || missing_shuffle_enabled || missing_repeat_enabled || missing_pause_track || missing_previous_track || missing_frontend_volume || missing_ingame_volume)
+		if (version_changed || missing_stop_music_on_loading_screens || missing_shuffle_enabled || missing_repeat_enabled || missing_frontend_volume || missing_ingame_volume || missing_hotkey_entry || invalid_hotkey_entry)
 		{
-          fs::write(settings::config_file, build_config_text(audio::playlist_name, audio::volume, audio::frontend_volume, audio::ingame_volume, toggle_overlay, pause_track, skip_track, previous_track, audio::stop_music_on_loading_screens, audio::shuffle_enabled, audio::repeat_enabled), false);
+			fs::write(settings::config_file, build_config_text(audio::playlist_name, audio::volume, audio::frontend_volume, audio::ingame_volume, audio::stop_music_on_loading_screens, audio::shuffle_enabled, audio::repeat_enabled), false);
 		}
 	}
 	else if (!fs::exists(settings::config_file))
 	{
-		input::toggle_overlay_key = VK_F11;
-     input::pause_track_key = VK_F8;
-		input::skip_track_key = VK_F10;
-		input::previous_track_key = VK_F9;
+		input::reset_all_hotkeys();
 
 		audio::playlist_name = "Music";
 		audio::playlist_dir = audio::playlist_name;
@@ -307,19 +333,57 @@ void settings::update()
 		audio::volume = 100;
         audio::frontend_volume = 100;
 		audio::ingame_volume = 100;
-        audio::shuffle_enabled = true;
+		audio::shuffle_enabled = true;
 		audio::repeat_enabled = true;
 		audio::stop_music_on_loading_screens = true;
-        fs::write(settings::config_file, build_config_text(audio::playlist_name, audio::volume, audio::frontend_volume, audio::ingame_volume, "F11", "F8", "F10", "F9", audio::stop_music_on_loading_screens, audio::shuffle_enabled, audio::repeat_enabled), false);
+		fs::write(settings::config_file, build_config_text(audio::playlist_name, audio::volume, audio::frontend_volume, audio::ingame_volume, audio::stop_music_on_loading_screens, audio::shuffle_enabled, audio::repeat_enabled), false);
 		return;
 	}
 
 	ini_free(config);
 }
 
+bool settings::save_core_integer(const char* key, const int value)
+{
+	return save_ini_value("core", key, std::to_string(value));
+}
+
+bool settings::save_config_boolean(const char* key, const bool value)
+{
+	return save_ini_value("config", key, value ? "true" : "false");
+}
+
+bool settings::save_hotkey_binding(const char* key_name, const std::uint32_t key)
+{
+	return save_ini_value("keys", key_name, input::key_to_string(key));
+}
+
+bool settings::save_all_hotkey_bindings()
+{
+	if (settings::config_file.empty())
+	{
+		return false;
+	}
+
+	ini_t* config = ini_load(settings::config_file.c_str());
+	if (!config)
+	{
+		return false;
+	}
+
+	for (const auto& binding : input::hotkey_bindings())
+	{
+		ini_set(config, "keys", binding.ini_key, input::key_to_string(*binding.runtime_key).c_str());
+	}
+
+	const bool saved = ini_save(config, settings::config_file.c_str()) != 0;
+	ini_free(config);
+	return saved;
+}
+
 bool settings::get_boolean(const char* bool_text)
 {
-   if (!bool_text)
+	if (!bool_text)
 	{
 		return false;
 	}

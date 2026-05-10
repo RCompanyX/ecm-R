@@ -6,7 +6,7 @@
 ## Overview
 
 ECM-R replaces or mutes the in-game music and plays audio files from a user playlist folder.
-It also includes an in-game overlay for basic playback control.
+It also includes an in-game overlay for playback control and runtime hotkey rebinding.
 
 This fork is currently focused on **Need for Speed: Underground 2 (NFSU2)**.
 
@@ -17,7 +17,7 @@ This fork is currently focused on **Need for Speed: Underground 2 (NFSU2)**.
 3. Place `ecm-r.x86.asi`, `ecm-r.x86.ini` (or let ECM-R create it), and `bass.dll` inside the target `scripts` folder.
 4. Create a `Music` folder next to those runtime files.
 5. Put your supported audio files inside `Music`.
-6. Launch the game and open the overlay with `F11`.
+6. Launch the game, wait for the first startup music banner to finish, and then open the overlay with `F11`.
 
 ECM-R supports `frontend_volume` and `ingame_volume` in addition to the legacy `volume` setting. Older configurations keep using `volume` as the fallback base when the context-specific values are missing.
 
@@ -123,9 +123,10 @@ ECM-R currently scans the playlist folder for these file types:
 
 ### Overlay and Controls
 
-- Displays an in-game overlay with playback controls and playlist browsing
-- Allows runtime toggles for shuffle and repeat directly from the overlay
-- Includes Pause/Resume, Previous, and Next controls in the overlay and supports configurable hotkeys for opening the overlay and changing tracks
+- Displays an in-game overlay with playback controls, a dedicated Hotkeys menu, and playlist browsing
+- Allows runtime toggles for shuffle and repeat directly from the overlay and supports optional hotkeys for both actions
+- Includes Pause/Resume, Previous, Skip, and overlay toggle actions that can be rebound at runtime from the overlay
+- Rejects duplicate hotkey assignments and suspends ECM-R hotkey execution while the overlay is capturing a new binding
 - ECM-R hotkeys stay locked only during the first startup music banner and become available after that banner has fully disappeared
 - Uses real playback history for previous-track navigation while shuffle is enabled
 - Updates the overlay chyron from filenames when track metadata follows the expected naming format
@@ -134,7 +135,7 @@ ECM-R currently scans the playlist folder for these file types:
 ### Configuration and Persistence
 
 - Creates `ecm-r.x86.ini` automatically on first launch
-- Saves runtime changes for shuffle, repeat, and volume settings back to the configuration file
+- Saves runtime changes for shuffle, repeat, volume, and hotkey settings back to the configuration file
 - Migrates older configurations by using legacy `volume` as the fallback source for context-specific volume settings
 - Supports configurable playlist location, key bindings, loading-screen music handling, and per-track routing rules
 
@@ -148,7 +149,9 @@ ECM-R currently scans the playlist folder for these file types:
 
 The full configuration reference is available in [CONFIGURATION.MD](CONFIGURATION.MD).
 
-Key supported settings include `frontend_volume`, `ingame_volume`, `shuffle_enabled`, `repeat_enabled`, `stop_music_on_loading_screens`, `pause_track`, and `previous_track`.
+Key supported settings include `frontend_volume`, `ingame_volume`, `shuffle_enabled`, `repeat_enabled`, `stop_music_on_loading_screens`, `toggle_overlay`, `pause_track`, `previous_track`, `skip_track`, `toggle_shuffle`, and `toggle_repeat`.
+
+Use `None` or `Unbound` in the `[keys]` section to disable a binding manually. The new `toggle_shuffle` and `toggle_repeat` hotkeys default to `None` until you assign them.
 
 ## Roadmap
 
