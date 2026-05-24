@@ -19,6 +19,9 @@ shuffle_enabled = true
 repeat_enabled = true
 stop_music_on_loading_screens = true
 
+[experimental]
+ingame_movie_muting = false
+
 [keys]
 toggle_overlay = F11
 pause_track = F8
@@ -99,9 +102,19 @@ Game Folder/
 - Default value: `true`.
 - When set to `false`, custom music continues through loading screens.
 
+## `[experimental]` Settings
+
+### `ingame_movie_muting`
+
+- Controls an experimental mute path for comic-style in-game movie sequences.
+- Default value: `false`.
+- When set to `true`, ECM-R also treats `IG_PlayMovie.fng` as a mute-trigger package.
+- This experimental mode also switches the package hook to reconcile pause state against the currently loaded mute packages, which avoids resuming too early while the movie package is still active.
+- When left at `false`, ECM-R keeps the legacy package-hook behavior.
+
 ### Accepted boolean values
 
-The `[config]` section accepts these values:
+The `[config]` and `[experimental]` sections accept these values:
 
 - `true`
 - `false`

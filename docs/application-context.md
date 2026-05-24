@@ -302,7 +302,9 @@ The current NFSU2 mute-detection list includes these packages:
 
 These are treated as game-owned sequences where ECM-R should pause its custom playback.
 
-Repository knowledge also indicates that `IG_PlayMovie.fng` is the clearest documented in-game movie package in the NFSU2 reverse-engineering references, but the current runtime does not yet include it in `audio::mute_detection`.
+The NFSU2 reverse-engineering references document `IG_PlayMovie.fng` as the in-game movie package used by career movie playback paths such as `PostRaceFNGObject::PlayMovieIfNeeded`.
+
+ECM-R keeps that package behind the `[experimental]` `ingame_movie_muting` flag. When the flag is `true`, `IG_PlayMovie.fng` is added to `audio::mute_detection` and the runtime uses the experimental package-reconciliation path. When the flag is `false`, ECM-R keeps the legacy package-hook behavior and does not treat `IG_PlayMovie.fng` as a mute trigger.
 
 ### Metadata and chyron text
 
@@ -328,16 +330,16 @@ The current NFSU2 integration depends on several direct patches and hooks in `sr
 | `0x004C347B -> 0x004C3533` | Disable the in-game pause-menu audio sliders |
 | `0x0057EDA3 -> sys_init` | Insert ECM-R system init hook |
 | `0x005811E4 -> NFSU2_MainLoop` | Run `audio::update()` every NFSU2 main-loop tick |
-| `0x00537980` via MinHook | Intercept package loads to pause or resume ECM-R around known packages |
+| `0x00537980` via MinHook | Intercept package loads for ECM-R mute handling |
 
 ### Package-load hook behavior
 
 The intercepted package-load function currently does this:
 
-- If the loaded package matches the mute-detection list, call `audio::pause()`.
-- Otherwise, if `audio::game_paused` is true, call `audio::play()`.
+- With `[experimental] ingame_movie_muting = false`, ECM-R keeps the legacy behavior: pause when the loaded package matches the mute-detection list, otherwise resume if `audio::game_paused` is already set.
+- With `[experimental] ingame_movie_muting = true`, ECM-R first calls the original package-load function and then reconciles pause state against the mute packages that are actually loaded.
 
-This branch is subtle and high-risk for regressions because any broadening of the resume condition can incorrectly restart music during menus, banners, or other non-playback-safe transitions.
+When the experimental path is enabled, `audio::update()` also repeats this reconciliation each game tick so package transitions that do not cleanly map to a single `ShowFNG` event still keep ECM-R paused for the full lifetime of the active movie package.
 
 ## Overlay, Input, and User Controls
 

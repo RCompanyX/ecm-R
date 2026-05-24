@@ -135,6 +135,41 @@ namespace
 		}
 	}
 
+	// Reports whether any FNG package that should mute ECM-R is currently active.
+	bool is_mute_package_loaded()
+	{
+		for (const char* package : audio::mute_detection)
+		{
+			if (hook::IsPackageLoaded(package))
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	// Rebuilds the list of FNG packages that should pause ECM-R for the current game.
+	void rebuild_mute_detection()
+	{
+		audio::mute_detection.clear();
+
+		switch (global::game)
+		{
+		case game_t::NFSU2:
+			audio::mute_detection.emplace_back("LS_PSAMovie.fng");
+			audio::mute_detection.emplace_back("LS_THXMovie.fng");
+			audio::mute_detection.emplace_back("LS_EAlogo.fng");
+			audio::mute_detection.emplace_back("LS_BlankMovie.fng");
+			audio::mute_detection.emplace_back("UG_LS_IntroFMV.fng");
+			if (audio::ingame_movie_muting)
+			{
+				audio::mute_detection.emplace_back("IG_PlayMovie.fng");
+			}
+			break;
+		}
+	}
+
 	// Applies the combined manual and game-driven pause state to the active stream.
 	void sync_pause_state()
 	{
@@ -362,17 +397,7 @@ namespace
 
 void audio::init()
 {
-	switch (global::game)
-	{
-	case game_t::NFSU2:
-		//WIP filter detection
-		audio::mute_detection.emplace_back("LS_PSAMovie.fng");
-		audio::mute_detection.emplace_back("LS_THXMovie.fng");
-		audio::mute_detection.emplace_back("LS_EAlogo.fng");
-		audio::mute_detection.emplace_back("LS_BlankMovie.fng");
-		audio::mute_detection.emplace_back("UG_LS_IntroFMV.fng");
-		break;
-	}
+	rebuild_mute_detection();
 
    if (!bass_api::load())
 	{
@@ -414,6 +439,10 @@ void audio::update()
 {
 	global::state = game_state;
 	update_first_chyron_state();
+	if (audio::ingame_movie_muting)
+	{
+		audio::sync_game_pause_from_mute_packages();
+	}
 
    if (audio::stop_music_on_loading_screens && is_loading_state())
 	{
@@ -611,6 +640,23 @@ void audio::pause()
 	sync_pause_state();
 }
 
+void audio::sync_game_pause_from_mute_packages()
+{
+	const bool should_pause = is_mute_package_loaded();
+	if (should_pause == audio::game_paused)
+	{
+		return;
+	}
+
+	if (should_pause)
+	{
+		audio::pause();
+		return;
+	}
+
+	audio::play();
+}
+
 void audio::toggle_manual_pause()
 {
 	const bool can_resume_current_song = audio::can_resume_current_song();
@@ -712,6 +758,19 @@ void audio::toggle_repeat_enabled()
 	audio::set_repeat_enabled(!audio::repeat_enabled);
 }
 
+void audio::set_ingame_movie_muting(const bool enabled)
+{
+	if (audio::ingame_movie_muting == enabled)
+	{
+		return;
+	}
+
+	audio::ingame_movie_muting = enabled;
+	rebuild_mute_detection();
+	settings::save_experimental_boolean("ingame_movie_muting", audio::ingame_movie_muting);
+	audio::sync_game_pause_from_mute_packages();
+}
+
 void audio::request_current_chyron()
 {
 	audio::pending_chyron = true;
@@ -743,6 +802,7 @@ std::int32_t audio::frontend_volume = 50;
 std::int32_t audio::ingame_volume = 50;
 std::int32_t audio::applied_volume = -1;
 bool audio::stop_music_on_loading_screens = true;
+bool audio::ingame_movie_muting = false;
 bool audio::shuffle_enabled = true;
 bool audio::repeat_enabled = true;
 bool audio::playlist_ended = false;

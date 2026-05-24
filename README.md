@@ -144,6 +144,7 @@ ECM-R currently scans the playlist folder for these file types:
 
 - Can stop custom music during loading screens and resume normal playback flow afterward through the `stop_music_on_loading_screens` setting, which defaults to `true`
 - Allows custom music to continue through loading screens when `stop_music_on_loading_screens` is set to `false`
+- Can optionally enable experimental muting for comic-style in-game movie sequences from the `Experimental` overlay menu or the `[experimental]` `ingame_movie_muting` setting
 - Keeps the original game files untouched while replacing or muting game music through the mod runtime
 
 ## Configuration
@@ -160,7 +161,6 @@ The current roadmap includes:
 
 - **Multiple Playlists** - Switch between different music folders dynamically within the game
 - **Advanced Context Filters** - More granular playback rules beyond FE/IG (events, game modes, etc.)
-- **In-Game Movie Handling** - Stop custom music during comic-style in-game cinematics before and after races
 - **Volume Normalization** - Automatic level equalization across all tracks
 
 ## Notes

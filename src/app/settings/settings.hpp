@@ -18,6 +18,8 @@ public:
 	static bool save_core_integer(const char* key, int value);
 	/// Saves a boolean value inside the [config] section.
 	static bool save_config_boolean(const char* key, bool value);
+	/// Saves a boolean value inside the [experimental] section.
+	static bool save_experimental_boolean(const char* key, bool value);
 	/// Saves one hotkey binding inside the [keys] section.
 	static bool save_hotkey_binding(const char* key_name, std::uint32_t key);
 	/// Writes every current hotkey binding to the INI file.

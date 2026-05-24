@@ -63,6 +63,13 @@ static void(* sub_00537980_)(int a2, char* a3, int a4);
 // Pauses or resumes custom music when specific UI packages trigger ECM-R's mute rules.
 void sub_00537980(int a2, char* a3, int a4)
 {
+	if (audio::ingame_movie_muting)
+	{
+		sub_00537980_(a2, a3, a4);
+		audio::sync_game_pause_from_mute_packages();
+		return;
+	}
+
 	bool found = false;
 	for (const char* package : audio::mute_detection)
 	{
@@ -73,7 +80,6 @@ void sub_00537980(int a2, char* a3, int a4)
 		}
 	}
 
-	//Will be reworked to better match the game eventually
 	if (found)
 	{
 		audio::pause();

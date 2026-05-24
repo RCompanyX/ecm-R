@@ -55,12 +55,16 @@ public:
 	static void set_repeat_enabled(bool enabled);
 	/// Flips repeat mode.
 	static void toggle_repeat_enabled();
+	/// Enables or disables the experimental in-game movie mute path.
+	static void set_ingame_movie_muting(bool enabled);
 	/// Returns whether the current track still has a resumable BASS stream.
 	static bool can_resume_current_song();
 	/// Applies a game or manual pause to the active track and hides the chyron.
 	static void pause();
 	/// Resumes playback when a paused track can continue.
 	static void play();
+	/// Reconciles game-driven pause with the mute-trigger packages that are currently loaded.
+	static void sync_game_pause_from_mute_packages();
 	/// Marks the current track metadata to be shown again when the UI allows it.
 	static void request_current_chyron();
 	/// Reports whether playback hotkeys should be ignored in the current game state.
@@ -91,6 +95,7 @@ public:
 	static std::int32_t ingame_volume;
 	static std::int32_t applied_volume;
 	static bool stop_music_on_loading_screens;
+	static bool ingame_movie_muting;
 	static bool shuffle_enabled;
 	static bool repeat_enabled;
 	static bool playlist_ended;

@@ -24,6 +24,8 @@ private:
 	static void main_menu_bar();
 	/// Renders playback controls and runtime toggles.
 	static void actions();
+	/// Renders runtime toggles for experimental features.
+	static void experimental();
 	/// Renders the hotkey rebinding panel and capture feedback.
 	static void hotkeys();
 	/// Renders version, credits, and release notice information.
