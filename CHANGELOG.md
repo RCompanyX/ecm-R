@@ -4,6 +4,21 @@ All notable changes to ECM-R are documented in this file.
 
 This changelog tracks the tagged releases recorded in this repository.
 
+## [v0.5.11-alpha] - 2026-05-24
+
+### Added
+- Added an `Experimental` overlay menu with a runtime toggle for in-game movie muting.
+
+### Changed
+- Added experimental muting for comic-style in-game movie sequences that use NFSU2's `IG_PlayMovie.fng` package.
+- Moved the movie-muting toggle to the new `[experimental]` `ingame_movie_muting` setting, which stays disabled by default.
+- Existing temporary `experimental_ingame_movie_muting` entries now migrate to the new setting name and section.
+- The legacy package pause/resume behavior remains unchanged while the experimental toggle is disabled.
+
+### Documentation
+- Updated the README, configuration manual, and application context to describe the experimental movie-muting flow.
+- Added release notes for `v0.5.11-alpha`.
+
 ## [v0.5.10-alpha] - 2026-05-10
 
 ### Added
@@ -180,3 +195,4 @@ This changelog tracks the tagged releases recorded in this repository.
 [v0.5.8-alpha]: https://github.com/RCompanyX/ecm/releases/tag/v0.5.8-alpha
 [v0.5.9-alpha]: https://github.com/RCompanyX/ecm-R/releases/tag/v0.5.9-alpha
 [v0.5.10-alpha]: https://github.com/RCompanyX/ecm-R/releases/tag/v0.5.10-alpha
+[v0.5.11-alpha]: https://github.com/RCompanyX/ecm-R/releases/tag/v0.5.11-alpha
