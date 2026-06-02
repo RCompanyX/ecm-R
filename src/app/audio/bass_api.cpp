@@ -230,7 +230,16 @@ namespace bass_api
             return 0;
         }
 
-        return stream_create_file_ptr(FALSE, file, 0, 0, sample_float | stream_prescan);
+        const int wide_len = MultiByteToWideChar(CP_UTF8, 0, file, -1, nullptr, 0);
+        if (wide_len <= 0)
+        {
+            return 0;
+        }
+
+        std::wstring wfile(static_cast<size_t>(wide_len) - 1, 0);
+        MultiByteToWideChar(CP_UTF8, 0, file, -1, wfile.data(), wide_len);
+
+        return stream_create_file_ptr(FALSE, wfile.c_str(), 0, 0, sample_float | stream_prescan | bass_unicode);
     }
 
     bool channel_play(DWORD channel, bool restart)

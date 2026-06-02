@@ -25,10 +25,12 @@ void play_file(const char* file, int channel)
 		{
 			title = info[0];
 		}
-		else if (info.size() == 2)
+		else if (info.size() >= 2)
 		{
 			artist = info[0];
-			title = info[1].erase(0, 2);
+			title = info[1];
+			for (size_t i = 2; i < info.size(); ++i)
+				title += " - " + info[i];
 		}
 
 		audio::currently_playing.title = title;

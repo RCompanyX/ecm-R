@@ -102,7 +102,7 @@ namespace
 			return false;
 		}
 
-		if (!hook::SummonChyron(audio::currently_playing.title.c_str(), audio::currently_playing.artist.c_str(), audio::currently_playing.where.c_str()))
+		if (!hook::SummonChyron(fs::utf8_to_ansi(audio::currently_playing.title).c_str(), fs::utf8_to_ansi(audio::currently_playing.artist).c_str(), audio::currently_playing.where.c_str()))
 		{
 			return false;
 		}
@@ -484,10 +484,7 @@ void audio::update()
 
 void audio::play_file(const std::string& file, int channel)
 {
-	std::string title = file;
-	logger::rem_path_info(title, audio::playlist_dir);
-	audio::currently_playing.title = title;
- audio::playlist_ended = false;
+	audio::playlist_ended = false;
 	::play_file(file.c_str(), channel);
 }
 
@@ -695,7 +692,7 @@ bool audio::can_resume_current_song()
 void audio::enumerate_playlist()
 {
 	std::vector<std::string> files = fs::get_all_files(audio::playlist_dir, audio::supported_files);
-	for (std::string file : files)
+	for (std::string& file : files)
 	{
 		audio::playlist_files.emplace_back(file, "N/A");
 	}

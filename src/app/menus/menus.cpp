@@ -1019,7 +1019,7 @@ void menus::build_font(ImGuiIO& io)
 
 	if (fs::exists(font))
 	{
-		io.Fonts->AddFontFromFileTTF(&font[0], 18.0f);
+		io.Fonts->AddFontFromFileTTF(&font[0], 18.0f, nullptr, io.Fonts->GetGlyphRangesCyrillic());
 
 		static ImFontConfig cfg;
 		static ImWchar emoji_ranges[] = { 0x1, 0x1FFFF, 0 };

@@ -15,6 +15,7 @@ namespace bass_api
     inline constexpr DWORD sample_float = 0x100;
     inline constexpr DWORD stream_prescan = 0x20000;
     inline constexpr DWORD config_gvol_stream = 5;
+    inline constexpr DWORD bass_unicode = 0x80000000;
 
     /// Loads bass.dll from the plugin directory and resolves the required exports.
     bool load();
@@ -44,7 +45,7 @@ namespace bass_api
     bool set_channel_volume(DWORD channel, float volume);
     /// Applies the master stream volume using ECM-R's 0-100 range.
     bool set_stream_volume_config(std::int32_t volume);
-    /// Opens a file-backed BASS stream for a playlist entry.
+    /// Opens a file-backed BASS stream for a playlist entry (UTF-8 path).
     stream_handle_t stream_create_file(const char* file);
     /// Starts playback on a stream handle, optionally from the beginning.
     bool channel_play(DWORD channel, bool restart);
