@@ -44,7 +44,7 @@ public:
 
 	static bool exists(const std::string& path)
 	{
-		return std::filesystem::exists(path);
+		return std::filesystem::exists(utf8_to_wstring(path));
 	}
 
 	static std::string get_cur_dir()
@@ -130,7 +130,7 @@ public:
 					const std::wstring wext = entry.path().extension().wstring();
 					for (const std::wstring& wx : wexts)
 					{
-						if (wext == wx)
+						if (lstrcmpiW(wext.c_str(), wx.c_str()) == 0)
 						{
 							retn.emplace_back(wstring_to_utf8(entry.path().wstring()));
 							break;
