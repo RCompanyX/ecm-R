@@ -4,11 +4,6 @@ All notable changes to ECM-R are documented in this file.
 
 This changelog tracks the tagged releases recorded in this repository.
 
-## [Unreleased]
-
-### Fixed
-- New music files added to the playlist folder now persist to the `[trax]` section of the INI on the next startup instead of being playable only in memory. Previously tracks only appeared in `[trax]` when the configuration was rewritten due to version changes or missing settings keys.
-
 ## [v0.5.11-alpha] - 2026-05-24
 
 ### Added
