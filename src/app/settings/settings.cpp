@@ -327,24 +327,15 @@ void settings::update()
 		audio::playlist_dir = fs::get_self_path() + audio::playlist_dir;
 		audio::enumerate_playlist();
 
-		bool new_tracks_found = false;
-
 		for (int i = 0; i < audio::playlist_files.size(); ++i)
 		{
 			std::string song = audio::playlist_files[i].first;
 			song.erase(0, audio::playlist_dir.size() + 1);
           const char* res = ini_get(config, "trax", song.c_str());
-			if (!res)
-			{
-				new_tracks_found = true;
-			}
 			audio::playlist_files[i].second = normalize_trax_value(res);
 		}
 
-		if (new_tracks_found)
-		{
-			settings::sync_trax_entries();
-		}
+		settings::sync_trax_entries();
 
 		if (version_changed || missing_stop_music_on_loading_screens || missing_ingame_movie_muting || legacy_ingame_movie_muting_present || missing_shuffle_enabled || missing_repeat_enabled || missing_frontend_volume || missing_ingame_volume || missing_hotkey_entry || invalid_hotkey_entry)
 		{
@@ -440,6 +431,53 @@ bool settings::sync_trax_entries()
 		std::string file = song.first;
 		file.erase(0, audio::playlist_dir.size() + 1);
 		ini_set(config, "trax", file.c_str(), song.second.c_str());
+	}
+
+	// Remove orphaned [trax] entries for files no longer on disk
+	{
+		const std::string raw = fs::read(settings::config_file);
+		if (!raw.empty())
+		{
+			bool in_trax = false;
+			std::string line;
+			std::istringstream stream(raw);
+			while (std::getline(stream, line))
+			{
+				if (!line.empty() && line.back() == '\r')
+				{
+					line.pop_back();
+				}
+
+				if (!line.empty() && line.front() == '[')
+				{
+					in_trax = (line == "[trax]");
+					continue;
+				}
+
+				if (!in_trax)
+				{
+					continue;
+				}
+
+				const std::size_t eq_pos = line.find('=');
+				if (eq_pos == std::string::npos)
+				{
+					continue;
+				}
+
+				const std::string key = trim_copy(line.substr(0, eq_pos));
+				if (key.empty())
+				{
+					continue;
+				}
+
+				const std::string full_path = audio::playlist_dir + "\\" + key;
+				if (!fs::exists(full_path))
+				{
+					ini_set(config, "trax", key.c_str(), "");
+				}
+			}
+		}
 	}
 
 	const bool saved = ini_save(config, settings::config_file.c_str()) != 0;
