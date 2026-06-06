@@ -56,3 +56,4 @@
 - Language: English.
 - Branch: `dev_...`.
 - Copyright/attribution: Preserve ECM-R / ECM / BttrDrgn lineage.
+- **Git commits: never commit without explicit user approval.** Before any `git commit`, `git push`, or GitHub write operation, you must ask the user and receive confirmation. Informational/read-only Git/GitHub operations (status, diff, log, read) do not require approval.
