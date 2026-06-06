@@ -467,6 +467,10 @@ The settings layer also repairs or migrates older configurations by:
 - restoring invalid or duplicate hotkey entries to safe defaults,
 - rewriting the config when version or structure drift is detected.
 
+### Track auto-population in [trax]
+
+When the settings layer loads an existing INI and discovers music files that are not yet listed in `[trax]`, those tracks are playable in memory (assigned `ALL` routing) and are also automatically written to the INI via `settings::sync_trax_entries()`. This ensures newly added music files persist to the configuration without requiring a version change or a full config rewrite.
+
 This makes settings work an area where behavior, migration, and persistence must stay aligned.
 
 ## Build and Packaging Context

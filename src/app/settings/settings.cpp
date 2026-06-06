@@ -335,6 +335,8 @@ void settings::update()
 			audio::playlist_files[i].second = normalize_trax_value(res);
 		}
 
+		settings::sync_trax_entries();
+
 		if (version_changed || missing_stop_music_on_loading_screens || missing_ingame_movie_muting || legacy_ingame_movie_muting_present || missing_shuffle_enabled || missing_repeat_enabled || missing_frontend_volume || missing_ingame_volume || missing_hotkey_entry || invalid_hotkey_entry)
 		{
 			fs::write(settings::config_file, build_config_text(audio::playlist_name, audio::volume, audio::frontend_volume, audio::ingame_volume, audio::stop_music_on_loading_screens, audio::ingame_movie_muting, audio::shuffle_enabled, audio::repeat_enabled), false);
@@ -404,6 +406,78 @@ bool settings::save_all_hotkey_bindings()
 	for (const auto& binding : input::hotkey_bindings())
 	{
 		ini_set(config, "keys", binding.ini_key, input::key_to_string(*binding.runtime_key).c_str());
+	}
+
+	const bool saved = ini_save(config, settings::config_file.c_str()) != 0;
+	ini_free(config);
+	return saved;
+}
+
+bool settings::sync_trax_entries()
+{
+	if (settings::config_file.empty())
+	{
+		return false;
+	}
+
+	ini_t* config = ini_load(settings::config_file.c_str());
+	if (!config)
+	{
+		return false;
+	}
+
+	for (const auto& song : audio::playlist_files)
+	{
+		std::string file = song.first;
+		file.erase(0, audio::playlist_dir.size() + 1);
+		ini_set(config, "trax", file.c_str(), song.second.c_str());
+	}
+
+	// Remove orphaned [trax] entries for files no longer on disk
+	{
+		const std::string raw = fs::read(settings::config_file);
+		if (!raw.empty())
+		{
+			bool in_trax = false;
+			std::string line;
+			std::istringstream stream(raw);
+			while (std::getline(stream, line))
+			{
+				if (!line.empty() && line.back() == '\r')
+				{
+					line.pop_back();
+				}
+
+				if (!line.empty() && line.front() == '[')
+				{
+					in_trax = (line == "[trax]");
+					continue;
+				}
+
+				if (!in_trax)
+				{
+					continue;
+				}
+
+				const std::size_t eq_pos = line.find('=');
+				if (eq_pos == std::string::npos)
+				{
+					continue;
+				}
+
+				const std::string key = trim_copy(line.substr(0, eq_pos));
+				if (key.empty())
+				{
+					continue;
+				}
+
+				const std::string full_path = audio::playlist_dir + "\\" + key;
+				if (!fs::exists(full_path))
+				{
+					ini_set(config, "trax", key.c_str(), "");
+				}
+			}
+		}
 	}
 
 	const bool saved = ini_save(config, settings::config_file.c_str()) != 0;
