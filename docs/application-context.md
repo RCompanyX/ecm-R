@@ -204,14 +204,18 @@ If `bass.dll` is missing, wrong, or incomplete:
 
 The current code validates the BASS version against the expected `0x204` major version family.
 
+When opening a stream for playback, ECM-R converts the UTF-8 file path to a wide string and passes it with the `BASS_UNICODE` flag so non-ASCII filenames are resolved correctly.
+
 ### Playlist discovery
 
 Settings initialization resolves the playlist directory from the plugin path and the configured playlist folder name.
 
 `audio::enumerate_playlist()` scans the folder for supported file types and records each discovered track as:
 
-- full path,
+- full path (stored internally as UTF-8),
 - routing context from `[trax]`, normalized to `ALL`, `FE`, or `IG`.
+
+Directory enumeration uses wide-string `std::filesystem` APIs and converts paths back to UTF-8 for internal storage. Extension matching is case-insensitive so `.mp3`, `.MP3`, and `.Mp3` are all recognized correctly.
 
 Supported file extensions currently documented in the repository are:
 

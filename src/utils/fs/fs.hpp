@@ -3,13 +3,48 @@
 #include <fstream>
 #include <sstream>
 #include <filesystem>
+#include <Windows.h>
 
 class fs
 {
 public:
+	static std::string wstring_to_utf8(const std::wstring& wstr)
+	{
+		if (wstr.empty()) return {};
+		const int len = WideCharToMultiByte(CP_UTF8, 0, wstr.data(), static_cast<int>(wstr.size()), nullptr, 0, nullptr, nullptr);
+		if (len <= 0) return {};
+		std::string result(len, 0);
+		WideCharToMultiByte(CP_UTF8, 0, wstr.data(), static_cast<int>(wstr.size()), result.data(), len, nullptr, nullptr);
+		return result;
+	}
+
+	static std::wstring utf8_to_wstring(const std::string& str)
+	{
+		if (str.empty()) return {};
+		const int len = MultiByteToWideChar(CP_UTF8, 0, str.data(), static_cast<int>(str.size()), nullptr, 0);
+		if (len <= 0) return {};
+		std::wstring result(len, 0);
+		MultiByteToWideChar(CP_UTF8, 0, str.data(), static_cast<int>(str.size()), result.data(), len);
+		return result;
+	}
+
+	static std::string utf8_to_ansi(const std::string& utf8_str)
+	{
+		if (utf8_str.empty()) return {};
+		const int wide_len = MultiByteToWideChar(CP_UTF8, 0, utf8_str.data(), static_cast<int>(utf8_str.size()), nullptr, 0);
+		if (wide_len <= 0) return {};
+		std::wstring wide(static_cast<size_t>(wide_len), 0);
+		MultiByteToWideChar(CP_UTF8, 0, utf8_str.data(), static_cast<int>(utf8_str.size()), wide.data(), wide_len);
+		const int ansi_len = WideCharToMultiByte(CP_ACP, 0, wide.data(), wide_len, nullptr, 0, nullptr, nullptr);
+		if (ansi_len <= 0) return {};
+		std::string ansi(ansi_len, 0);
+		WideCharToMultiByte(CP_ACP, 0, wide.data(), wide_len, ansi.data(), ansi_len, nullptr, nullptr);
+		return ansi;
+	}
+
 	static bool exists(const std::string& path)
 	{
-		return std::filesystem::exists(path);
+		return std::filesystem::exists(utf8_to_wstring(path));
 	}
 
 	static std::string get_cur_dir()
@@ -80,32 +115,26 @@ public:
 	static std::vector<std::string> get_all_files(const std::string& path, const std::initializer_list<std::string>& exts)
 	{
 		std::vector<std::string> retn;
+		const std::wstring wpath = utf8_to_wstring(path);
 
-		if (std::filesystem::exists(path) && std::filesystem::is_directory(path))
+		if (std::filesystem::exists(wpath) && std::filesystem::is_directory(wpath))
 		{
-			for (const std::filesystem::directory_entry& entry : std::filesystem::recursive_directory_iterator(path))
+			std::vector<std::wstring> wexts;
+			for (const std::string& ex : exts)
+				wexts.emplace_back(utf8_to_wstring("." + ex));
+
+			for (const std::filesystem::directory_entry& entry : std::filesystem::recursive_directory_iterator(wpath))
 			{
 				if (std::filesystem::is_regular_file(entry))
 				{
-					//Check if we got this extension
-					bool found = false;
-					for (const std::string& ext : exts)
+					const std::wstring wext = entry.path().extension().wstring();
+					for (const std::wstring& wx : wexts)
 					{
-						if (entry.path().extension().compare(ext))
+						if (lstrcmpiW(wext.c_str(), wx.c_str()) == 0)
 						{
-							found = true;
+							retn.emplace_back(wstring_to_utf8(entry.path().wstring()));
 							break;
 						}
-					}
-
-					//Oh no we didn't :(
-					if (!found)
-					{
-						continue;
-					}
-					else if (found)	//Oh wait we did ;)
-					{
-						retn.emplace_back(entry.path().string());
 					}
 				}
 			}
