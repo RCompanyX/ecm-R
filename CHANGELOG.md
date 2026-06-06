@@ -4,27 +4,6 @@ All notable changes to ECM-R are documented in this file.
 
 This changelog tracks the tagged releases recorded in this repository.
 
-## [v0.5.12-alpha] - 2026-06-05
-
-### Added
-- Added Unicode filename support so MP3 files with Cyrillic, Korean, Japanese, or other non-ASCII characters no longer crash the game on startup.
-
-### Changed
-- Internal file paths are now stored as UTF-8, with conversion to wide strings at filesystem and BASS API boundaries.
-- Directory enumeration uses wide-string `std::filesystem` APIs for correct handling of non-ASCII paths.
-- BASS stream creation now passes file paths as wide strings with the `BASS_UNICODE` flag.
-- The in-game overlay playlist menu now loads Cyrillic glyph ranges so Unicode filenames render correctly.
-
-### Fixed
-- Fixed a crash on startup when any audio file has non-ASCII characters in its name.
-- Fixed the file extension filter that was incorrectly accepting all file types regardless of the configured extension list. Extensions are now matched case-insensitively.
-- Fixed the title parser that corrupted some track titles by trimming the first two characters.
-- Fixed filenames with multiple ` - ` separators (e.g. `Artist - Title - Subtitle`) showing as `N/A` in the notification.
-- Fixed `fs::exists()` to use wide-string filesystem APIs for consistency with the rest of the path handling.
-
-### Known Limitations
-- The in-game notification (chyron) shows `?` for characters outside the game's ANSI code page. This is a limitation of the NFSU2 engine itself.
-
 ## [v0.5.11-alpha] - 2026-05-24
 
 ### Added
