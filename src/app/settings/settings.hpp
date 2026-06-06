@@ -24,5 +24,7 @@ public:
 	static bool save_hotkey_binding(const char* key_name, std::uint32_t key);
 	/// Writes every current hotkey binding to the INI file.
 	static bool save_all_hotkey_bindings();
+	/// Persists all playlist tracks to the [trax] section of the INI file.
+	static bool sync_trax_entries();
 	static std::string config_file;
 };
