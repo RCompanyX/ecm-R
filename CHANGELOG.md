@@ -217,4 +217,3 @@ This changelog tracks the tagged releases recorded in this repository.
 [v0.5.9-alpha]: https://github.com/RCompanyX/ecm-R/releases/tag/v0.5.9-alpha
 [v0.5.10-alpha]: https://github.com/RCompanyX/ecm-R/releases/tag/v0.5.10-alpha
 [v0.5.11-alpha]: https://github.com/RCompanyX/ecm-R/releases/tag/v0.5.11-alpha
-[v0.5.12-alpha]: https://github.com/RCompanyX/ecm-R/releases/tag/v0.5.12-alpha
