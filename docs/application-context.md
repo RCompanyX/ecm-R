@@ -2,22 +2,20 @@
 
 ## Purpose
 
-This document consolidates the functional and technical context of ECM-R so contributors and GitHub Copilot can reason about the repository from a shared source of truth.
+This document consolidates the functional and technical context of ECM-R so contributors and AI coding agents (OpenCode, GitHub Copilot) can reason about the repository from a shared source of truth.
 
 It complements these existing documents:
 
 - `README.md` for product overview and user-facing behavior.
 - `BUILDING.md` for build and packaging.
 - `CONFIGURATION.MD` for INI behavior.
-- `.github/copilot-instructions.md` for repository-specific agent rules.
+- `AGENTS.md` for repository-specific agent rules and workflows.
 
-When this document and the code disagree, the code is authoritative. If that happens, update this document and the Copilot instructions in the same change.
+When this document and the code disagree, the code is authoritative. If that happens, update this document and `AGENTS.md` in the same change.
 
-## Copilot Entry Point
+## Agent Entry Point
 
-GitHub Copilot reads the repository instruction file at `.github/copilot-instructions.md`.
-
-That instruction file should point the agent here before non-trivial ECM-R work so the agent has a repository-level model of:
+Agents should read `AGENTS.md` first for workflow and rule instructions, then this document before any non-trivial ECM-R work to build a repository-level model of:
 
 - the NFSU2 game-state model,
 - the audio pause/resume flow,
@@ -59,7 +57,7 @@ Key deployment constraints:
 
 - `ecm-r.x86.asi` is the loader-facing runtime artifact.
 - `ecm-r.x86.ini` is created automatically if missing.
-- `bass.dll` is not bundled by the repository and must be obtained from the official BASS distribution.
+- `bass.dll` is not bundled by the repository and must be obtained from the official BASS distribution. No BASS SDK binaries are committed, and no unofficial redistribution is permitted.
 - ECM-R loads `bass.dll` dynamically from the same directory as the plugin module.
 - The active build target for NFSU2 is `Release | Win-x86`.
 - The runtime-facing startup guidance and the maintained documentation both assume deployment next to `ecm-r.x86.asi`.
@@ -528,7 +526,7 @@ Use this file map when scoping work:
 - Configuration contract: `CONFIGURATION.MD`
 - Build contract: `BUILDING.md`
 
-## Reliability Checklist for Contributors and Copilot
+## Reliability Checklist for Contributors and Agents
 
 Before changing playback, hooks, or settings, verify all of the following:
 
