@@ -6,6 +6,9 @@ This changelog tracks the tagged releases recorded in this repository.
 
 ## [Unreleased]
 
+### Documentation
+- Documented project subagents (`ecmr-plan`, `ecmr-dev`, `ecmr-release`) in AGENTS.md and `docs/application-context.md`.
+
 ### Fixed
 - Fixed shuffle playback history being wiped on playlist context changes (e.g. Racing → InFrontend), which broke "Previous track" after returning from a race to free roam.
 - Fixed filename parsing to split on the first `-` character and trim whitespace from both sides, correctly handling filenames with extra spaces around the separator (e.g. `04.    -   Song Test One.mp3` → `04. - Song Test One`).

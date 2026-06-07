@@ -24,6 +24,51 @@ Agents should read `AGENTS.md` first for workflow and rule instructions, then th
 - the configuration and persistence rules,
 - the runtime dependency boundary around `bass.dll`.
 
+### Agent Architecture
+
+ECM-R defines three specialized subagents for development workflows. They are defined in `.opencode/agents/` and managed through OpenCode.
+
+| Agent | Role | Permissions | Key constraint |
+| --- | --- | --- | --- |
+| `ecmr-plan` | Planning | Read-only | Never edits files; delegates execution to `ecmr-dev` |
+| `ecmr-dev` | Development | Read-write | Creates `dev_...` branch before any edit; builds `Release\|Win-x86` |
+| `ecmr-release` | Releases | Read-write | Manages version bumps, changelog, and release notes; never touches `docs/application-context.md` |
+
+#### Planning agent (`ecmr-plan`)
+
+The entry point for non-trivial feature and bug work. Analyzes requests, assesses viability and risk, and produces an implementation plan. Plans cover: affected `GameFlowState` values, audio transitions, hook surfaces, overlay flows, and persisted settings (per AGENTS.md §8).
+
+After the plan is approved, `ecmr-plan` delegates execution to `ecmr-dev` via the Task tool with the full plan text.
+
+#### Developer agent (`ecmr-dev`)
+
+Receives approved plans and implements them. Responsibilities:
+
+- Creates a `dev_...` branch following AGENTS.md §10 rules.
+- Implements features, bug fixes, or documentation changes.
+- Builds the plugin targeting `Release | Win-x86`.
+- Keeps `CHANGELOG.md` `## [Unreleased]` entries updated as work progresses.
+- Follows all rules in AGENTS.md and `docs/application-context.md`.
+
+#### Release agent (`ecmr-release`)
+
+Prepares versioned releases. Workflow:
+
+- Bumps semantic version in `src/app/stdafx.hpp`.
+- Renames `## [Unreleased]` to the new version tag in CHANGELOG.md.
+- Generates release notes in `docs/releases/vX.Y.Z-alpha.md`.
+- Syncs user-facing documentation: `README.md`, `CONFIGURATION.MD`, `BUILDING.md`.
+
+The release agent has a strict boundary: it never modifies `docs/application-context.md` (owned by the dev agent), source files (except `stdafx.hpp`), or agent definitions under `.opencode/`.
+
+#### Typical workflow
+
+1. **Planning phase:** `ecmr-plan` analyzes the request and produces a plan.
+2. **Implementation phase:** `ecmr-dev` executes the plan on a `dev_...` branch.
+3. **Release phase:** `ecmr-release` packages the completed work into a versioned release.
+
+See AGENTS.md for detailed agent instructions and rules.
+
 ## Product Summary
 
 ECM-R, short for External Custom Music Reloaded, is a Windows ASI-style mod focused on Need for Speed: Underground 2.
