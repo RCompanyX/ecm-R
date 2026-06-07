@@ -18,20 +18,26 @@ void play_file(const char* file, int channel)
 		std::string artist = "N/A";
 
 		std::string temp = file;
-		logger::rem_path_info(temp, audio::playlist_dir);
-		std::vector<std::string> info = logger::split(temp, " - ");
+		// Strip playlist directory prefix
+		temp.erase(0, audio::playlist_dir.size() + 1);
+		// Strip file extension (find last dot)
+		const size_t dot = temp.rfind('.');
+		if (dot != std::string::npos)
+			temp.erase(dot);
 
-		if (info.size() == 1)
+		const size_t dash_pos = temp.find('-');
+		if (dash_pos != std::string::npos)
 		{
-			title = info[0];
+			artist = temp.substr(0, dash_pos);
+			title  = temp.substr(dash_pos + 1); // skip '-'
 		}
-		else if (info.size() >= 2)
+		else
 		{
-			artist = info[0];
-			title = info[1];
-			for (size_t i = 2; i < info.size(); ++i)
-				title += " - " + info[i];
+			title = temp;
 		}
+
+		logger::trim(title);
+		logger::trim(artist);
 
 		audio::currently_playing.title = title;
 		audio::currently_playing.artist = artist;

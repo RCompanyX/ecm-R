@@ -674,7 +674,10 @@ void menus::main_menu_bar()
 		menus::hotkeys();
 		menus::playlist();
 
-		ImGui::Text(logger::va("Listening: %s on %s", audio::currently_playing.title.c_str(), audio::playlist_name.c_str()).c_str());
+		const std::string display_name = (audio::currently_playing.artist != "N/A")
+			? audio::currently_playing.artist + " - " + audio::currently_playing.title
+			: audio::currently_playing.title;
+		ImGui::Text(logger::va("Listening: %s on %s", display_name.c_str(), audio::playlist_name.c_str()).c_str());
 		ImGui::SameLine();
 		ImGui::Text("[%s]", audio::manual_paused ? "Paused" : "Playing");
 
@@ -1002,8 +1005,28 @@ void menus::playlist()
 		for (int i = 0; i < audio::playlist_files.size(); ++i)
 		{
 			std::string song = audio::playlist_files[i].first;
-			logger::rem_path_info(song, audio::playlist_dir);
-			ImGui::Text("%s", song.c_str());
+			song.erase(0, audio::playlist_dir.size() + 1);
+			const size_t dot = song.rfind('.');
+			if (dot != std::string::npos)
+				song.erase(dot);
+
+			const size_t dash_pos = song.find('-');
+			std::string display;
+			if (dash_pos != std::string::npos)
+			{
+				std::string art = song.substr(0, dash_pos);
+				std::string ttl = song.substr(dash_pos + 1);
+				logger::trim(art);
+				logger::trim(ttl);
+				display = art + " - " + ttl;
+			}
+			else
+			{
+				display = song;
+				logger::trim(display);
+			}
+
+			ImGui::Text("%s", display.c_str());
 		}
 
 		ImGui::EndMenu();
