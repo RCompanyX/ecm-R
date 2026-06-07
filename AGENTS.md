@@ -27,8 +27,8 @@
 
 ### 5. Work Roles
 - Route by work type, not subsystem (repo tightly coupled):
-  - **Viability/planning**: assess fit/risk, reject bad scope, plan approved work.
-  - **Evolutive**: build approved features/UX/config/docs.
+  - **Viability/planning**: assess fit/risk, reject bad scope, plan approved work. Plan output must include CHANGELOG.md entries under `## [Unreleased]` — add to existing section or create new subsection headers (### Added, ### Changed, ### Fixed, etc) as needed.
+  - **Evolutive**: build approved features/UX/config/docs. Keep CHANGELOG.md `## [Unreleased]` entries updated as work progresses (add/change/fix entries, not just at release time).
   - **Incidents**: reproduce bug, isolate regression, fix, validate frontend/loading/racing/overlay/config.
 
 ### 6. Pre-Work Checks
