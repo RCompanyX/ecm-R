@@ -239,7 +239,7 @@ namespace bass_api
         std::wstring wfile(static_cast<size_t>(wide_len) - 1, 0);
         MultiByteToWideChar(CP_UTF8, 0, file, -1, wfile.data(), wide_len);
 
-        return stream_create_file_ptr(FALSE, wfile.c_str(), 0, 0, sample_float | stream_prescan | bass_unicode);
+        return stream_create_file_ptr(FALSE, wfile.c_str(), 0, 0, sample_float | bass_unicode);
     }
 
     bool channel_play(DWORD channel, bool restart)
