@@ -6,6 +6,9 @@ This changelog tracks the tagged releases recorded in this repository.
 
 ## [Unreleased]
 
+### Documentation
+- Documented project subagents (`ecmr-plan`, `ecmr-dev`, `ecmr-release`) in AGENTS.md and `docs/application-context.md`.
+
 ### Fixed
 - Fixed filename parsing to split on the first `-` character and trim whitespace from both sides, correctly handling filenames with extra spaces around the separator (e.g. `04.    -   Song Test One.mp3` → `04. - Song Test One`).
 - Fixed artist and title not being trimmed after parsing the filename in the overlay, playlist menu, and chyron notification.
