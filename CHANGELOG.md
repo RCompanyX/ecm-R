@@ -6,6 +6,9 @@ This changelog tracks the tagged releases recorded in this repository.
 
 ## [Unreleased]
 
+### Documentation
+- Documented project subagents (`ecmr-plan`, `ecmr-dev`, `ecmr-release`) in AGENTS.md and `docs/application-context.md`.
+
 ### Fixed
 - Fixed brief game freeze when changing songs caused by unnecessary `BASS_STREAM_PRESCAN` flag that performed blocking file pre-scan during stream creation.
 - Fixed filename parsing to split on the first `-` character and trim whitespace from both sides, correctly handling filenames with extra spaces around the separator (e.g. `04.    -   Song Test One.mp3` → `04. - Song Test One`).
