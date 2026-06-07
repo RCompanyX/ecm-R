@@ -287,11 +287,6 @@ namespace
 		const auto playlist_context = static_cast<std::int32_t>(get_playlist_context());
 		if (audio::playlist_order.empty() || audio::playlist_context != playlist_context)
 		{
-         if (audio::playlist_context != playlist_context)
-			{
-				clear_playback_history();
-			}
-
 			audio::create_playlist_order();
 			audio::current_song_index = reset_index;
 		}
