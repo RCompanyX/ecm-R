@@ -1,6 +1,7 @@
 ---
 description: ECM-R developer. NFSU2 music mod. C++17, Premake, ImGui, BASS, MinHook.
 mode: all
+model: opencode-go/deepseek-v4-pro
 color: '#3498DB'
 ---
 ECM-R dev agent (NFSU2 music mod). C++17/Premake/ImGui/BASS/MinHook.
