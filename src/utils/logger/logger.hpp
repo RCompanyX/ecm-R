@@ -75,7 +75,7 @@ public:
 
 			output.push_back(substring);
 
-			prev_pos = ++pos;
+			prev_pos = pos += seperator.length();
 		}
 
 		output.push_back(s.substr(prev_pos, pos - prev_pos)); // Last word
@@ -97,6 +97,21 @@ public:
 		{
 			c = std::toupper(c);
 		}));
+	}
+
+	static void trim(std::string& s)
+	{
+		auto first = std::find_if_not(s.begin(), s.end(), [](unsigned char ch) { return std::isspace(ch) != 0; });
+		auto last = std::find_if_not(s.rbegin(), s.rend(), [](unsigned char ch) { return std::isspace(ch) != 0; }).base();
+
+		if (first >= last)
+		{
+			s.clear();
+		}
+		else
+		{
+			s = std::string(first, last);
+		}
 	}
 
 	static void remove_non_ascii(std::string& s)
@@ -128,7 +143,8 @@ public:
 	static void rem_path_info(std::string& str, const std::string& dir)
 	{
 		//Assuming ext is 4 for now
-		str.erase(0, dir.size() + 1).erase(str.size() - 4, 4);
+		str.erase(0, dir.size() + 1);
+		str.erase(str.size() - 4, 4);
 	}
 #endif
 };
