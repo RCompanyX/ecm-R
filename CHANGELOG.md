@@ -16,6 +16,7 @@ This changelog tracks the tagged releases recorded in this repository.
 - Fixed artist and title not being trimmed after parsing the filename in the overlay, playlist menu, and chyron notification.
 - Fixed the overlay menu bar only displaying the song title; it now also shows the artist in `Artist - Title` format when available, matching the in-game chyron behavior.
 - Fixed the playlist menu showing raw filenames with extra whitespace instead of cleaned `Artist - Title` display.
+- Fixed "Previous track" playing tracks invalid for the current playlist context (e.g. IG-only tracks in Frontend) after shuffle playback history was preserved across context transitions. History entries are now validated against `[trax]` routing before playback and stale entries are automatically cleaned up.
 
 ## [v0.5.12-alpha] - 2026-06-06
 

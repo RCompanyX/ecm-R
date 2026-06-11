@@ -332,6 +332,21 @@ namespace
 		}
 
 		const int playlist_entry_index = audio::playback_history[history_index];
+
+		// Validate track is valid for current playlist context
+		const auto track_ctx = audio::playlist_files[playlist_entry_index].second;
+		const auto current_ctx = get_playlist_context();
+		if (!is_track_valid_for_context(track_ctx, current_ctx))
+		{
+			audio::playback_history.erase(audio::playback_history.begin() + history_index);
+			if (audio::playback_history_index > history_index)
+				--audio::playback_history_index;
+			else if (audio::playback_history_index == history_index
+			         && audio::playback_history_index >= static_cast<int>(audio::playback_history.size()))
+				audio::playback_history_index = static_cast<int>(audio::playback_history.size()) - 1;
+			return false;
+		}
+
 		sync_current_song_index_from_playlist_entry(playlist_entry_index);
 		play_song_from_playlist_entry(playlist_entry_index, false);
 		return true;
