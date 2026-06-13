@@ -166,4 +166,4 @@ Every scanned track is registered under `[trax]`. ECM-R automatically adds newly
    - In-Game context strictly excludes `FE`-assigned tracks.
    - If game context transitions while manually paused, playback remains paused unless the current track is invalid for the new context (which triggers a skip to the next valid song).
 5. **Supported Audio Containers:** `.wav`, `.mp1`, `.mp2`, `.mp3`, `.ogg`, and `.aif`.
-6. **Title Parsing:** If a file matches `Artist - Title.ext`, the chyron and overlay split this metadata into separate fields automatically.
+6. **Title Parsing:** Filenames are split on the first `-` character with whitespace trimmed from both sides. If a file matches `Artist - Title.ext`, the chyron, overlay menu bar, and playlist menu show the parsed metadata as clean `Artist - Title` formatting automatically.
