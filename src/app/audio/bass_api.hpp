@@ -12,8 +12,10 @@ namespace bass_api
     inline constexpr DWORD version = 0x204;
     inline constexpr DWORD active_stopped = 0;
     inline constexpr DWORD attrib_vol = 2;
-    inline constexpr DWORD sample_float = 0x100;
+    // Unused: float 32-bit decode doubles memory/CPU during stream creation.
+    // inline constexpr DWORD sample_float = 0x100;
     inline constexpr DWORD stream_prescan = 0x20000;
+    inline constexpr DWORD config_buffer = 0;
     inline constexpr DWORD config_gvol_stream = 5;
     inline constexpr DWORD bass_unicode = 0x80000000;
 

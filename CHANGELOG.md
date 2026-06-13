@@ -6,6 +6,10 @@ This changelog tracks the tagged releases recorded in this repository.
 
 ## [Unreleased]
 
+### Changed
+- Reduced song-change stutter by removing unnecessary float 32-bit decode flag from BASS stream creation.
+- Reduced BASS playback buffer from 500ms to 200ms to speed up stream creation and lower pause latency.
+
 ### Documentation
 - Documented project subagents (`ecmr-plan`, `ecmr-dev`, `ecmr-release`) in AGENTS.md and `docs/application-context.md`.
 
