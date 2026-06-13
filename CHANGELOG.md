@@ -12,11 +12,13 @@ This changelog tracks the tagged releases recorded in this repository.
 - Documented project subagents (`ecmr-plan`, `ecmr-dev`, `ecmr-release`) in AGENTS.md and `docs/application-context.md`.
 
 ### Fixed
+- Fixed shuffle playback history being wiped on playlist context changes (e.g. Racing → InFrontend), which broke "Previous track" after returning from a race to free roam.
 - Fixed brief game freeze when changing songs caused by unnecessary `BASS_STREAM_PRESCAN` flag that performed blocking file pre-scan during stream creation.
 - Fixed filename parsing to split on the first `-` character and trim whitespace from both sides, correctly handling filenames with extra spaces around the separator (e.g. `04.    -   Song Test One.mp3` → `04. - Song Test One`).
 - Fixed artist and title not being trimmed after parsing the filename in the overlay, playlist menu, and chyron notification.
 - Fixed the overlay menu bar only displaying the song title; it now also shows the artist in `Artist - Title` format when available, matching the in-game chyron behavior.
 - Fixed the playlist menu showing raw filenames with extra whitespace instead of cleaned `Artist - Title` display.
+- Fixed "Previous track" playing tracks invalid for the current playlist context (e.g. IG-only tracks in Frontend) after shuffle playback history was preserved across context transitions. History entries are now validated against `[trax]` routing before playback and stale entries are automatically cleaned up.
 
 ## [v0.5.12-alpha] - 2026-06-06
 
