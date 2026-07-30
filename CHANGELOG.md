@@ -6,6 +6,9 @@ This changelog tracks the tagged releases recorded in this repository.
 
 ## [Unreleased]
 
+### Added
+- Added GitHub Actions CI workflow (`build.yml`) that compiles `Release | Win-x86` and uploads the `.asi` artifact on every push and pull request.
+
 ## [v0.5.13-alpha] - 2026-06-13
 
 ### Documentation
