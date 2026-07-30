@@ -55,7 +55,7 @@ The in-game overlay also includes an **About** menu with the same fork attributi
 
 ## Building
 
-Build instructions for generating the plugin are available in [BUILDING.md](BUILDING.md).
+Build instructions are in [BUILDING.md](BUILDING.md). Pre-built CI artifacts are also available — see the [CI Builds section](BUILDING.md#ci-builds-github-actions) for details.
 
 ## Runtime Layout
 

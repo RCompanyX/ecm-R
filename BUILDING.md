@@ -9,9 +9,21 @@ For **Need for Speed: Underground 2**, the relevant and maintained target is the
 
 The generated workspace may expose additional platforms such as `Win-x64`, but repository validation, deployment guidance, and runtime naming are currently centered on `Release | Win-x86`.
 
+## CI Builds (GitHub Actions)
+
+Every push and pull request automatically compiles `Release | Win-x86` via GitHub Actions.
+Pre-built artifacts are available without a local Windows toolchain:
+
+1. Go to the [Actions](https://github.com/RCompanyX/ecm-r/actions) tab.
+2. Open the latest successful workflow run.
+3. Download the `ecm-r-build` artifact (ZIP file).
+4. Extract `ecm-r.x86.asi` into your game's `scripts` folder alongside `ecm-r.x86.ini` and `bass.dll`.
+
+This is useful for macOS/Linux users who cannot run the Visual Studio toolchain locally.
+
 ## Requirements
 
-- Windows
+- Windows _(required only for local builds — see [CI Builds](#ci-builds-github-actions) for a no-toolchain alternative)_
 - Git
 - Visual Studio with C++ desktop build tools
 - MSVC **v143** toolset (the generated projects target Visual Studio 2022 tools by default)
