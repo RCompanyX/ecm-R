@@ -7,6 +7,7 @@
 #include "settings/settings.hpp"
 
 #include <algorithm>
+#include <cctype>
 
 void play_file(const char* file, int channel)
 {

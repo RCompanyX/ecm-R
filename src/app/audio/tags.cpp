@@ -114,8 +114,7 @@ namespace
         // ponytail: we trust BASS returns at least header+tag_size bytes; if the
         // stream data is truncated by BASS, our bounds checks on read will catch
         // any overflow via safe_byte/be_u32 returning 0.
-        const std::size_t total = std::min(static_cast<std::size_t>(10 + tag_size),
-                                           static_cast<std::size_t>(tag_size + 10)); // conservative
+        const std::size_t total = static_cast<std::size_t>(10) + tag_size;
 
         // Extended header
         std::size_t cursor = 10;
