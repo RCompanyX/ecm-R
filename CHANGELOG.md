@@ -8,7 +8,7 @@ This changelog tracks the tagged releases recorded in this repository.
 
 ### Added
 - Added GitHub Actions CI workflow (`build.yml`) that compiles `Release | Win-x86` and uploads the `.asi` artifact on every push and pull request.
-- Embedded metadata tags (ID3v1, ID3v2, Vorbis Comments, RIFF INFO) are now read from music files and displayed in the in-game chyron and overlay. When tags are unavailable or unparseable, ECM-R falls back to the existing filename-derived "Artist - Title" convention on a per-field basis (e.g., a tagged title with no artist tag will still pick up the artist from the filename).
+- Embedded metadata tags (ID3v1, ID3v2, Vorbis Comments, RIFF INFO) are now read from music files and displayed in the in-game chyron and overlay. When tags are unavailable or unparseable, ECM-R falls back to the existing filename-derived "Artist - Title" convention on a per-field basis (e.g., a tagged title with no artist tag will still pick up the artist from the filename). (originally proposed and prototyped by @DeathWrench)
 
 ## [v0.5.13-alpha] - 2026-06-13
 
