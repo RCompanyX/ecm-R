@@ -677,7 +677,7 @@ void menus::main_menu_bar()
 		const std::string display_name = (audio::currently_playing.artist != "N/A")
 			? audio::currently_playing.artist + " - " + audio::currently_playing.title
 			: audio::currently_playing.title;
-		ImGui::Text(logger::va("Listening: %s on %s", display_name.c_str(), audio::playlist_name.c_str()).c_str());
+		ImGui::Text("Listening: %s on %s", display_name.c_str(), audio::playlist_name.c_str());
 		ImGui::SameLine();
 		ImGui::Text("[%s]", audio::manual_paused ? "Paused" : "Playing");
 

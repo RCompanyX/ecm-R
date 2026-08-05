@@ -356,15 +356,18 @@ ECM-R keeps that package behind the `[experimental]` `ingame_movie_muting` flag.
 
 ### Metadata and chyron text
 
-Playback metadata is derived primarily from filenames.
+Playback metadata is resolved in this order:
 
-If a filename matches `Artist - Title.ext`, ECM-R uses:
+1. **Embedded tags** (per-file-format):
+   - MP3 / MP1 / MP2 / AIF: ID3v2 (`TIT2` for title, `TPE1` for artist) first; ID3v1 second (per-field fallback, never overwrites ID3v2).
+   - OGG: Vorbis Comments (`TITLE`, `ARTIST`).
+   - WAV: RIFF INFO (`INAM`, `IART`).
+2. **Filename fallback** (per-field — only fills fields still `"N/A"` after tag parsing):
+   - If the filename matches `Artist - Title.ext`, ECM-R uses the left side as artist and the right side as title.
+   - If the filename does not match that pattern, the whole filename (minus extension) becomes the title and artist stays `"N/A"`.
+3. `playlist_name` is used as the album/source label (`where` field), independent of any embedded album tags.
 
-- the left side as artist,
-- the right side as title,
-- the playlist name as the album or source label.
-
-If the filename does not match that pattern cleanly, ECM-R falls back to simpler placeholders.
+Tags that are absent or malformed are silently skipped without crashing. Metadata resolution does not change playlist context, GameFlowState, or the playback state machine.
 
 ## Hook Map and Low-Level Integration
 

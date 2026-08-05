@@ -102,7 +102,27 @@ namespace
 			return false;
 		}
 
-		if (!hook::SummonChyron(fs::utf8_to_ansi(audio::currently_playing.title).c_str(), fs::utf8_to_ansi(audio::currently_playing.artist).c_str(), audio::currently_playing.where.c_str()))
+		// ponytail: clamp title/artist to 64 code points before passing to the game chyron.
+		// NFSU2's chyron has limited visual space; long embedded tags from user files
+		// can overflow or cause rendering glitches. Truncation goes through wstring
+		// to avoid splitting multi-byte UTF-8 sequences mid-character.
+		// Upgrade path: configurable max.
+		constexpr std::size_t max_chyron = 64;
+		auto truncate_for_chyron = [](const std::string& src) -> std::string
+		{
+			std::string s = src;
+			logger::trim(s);
+			if (s.size() <= max_chyron)
+				return s;
+			std::wstring w = fs::utf8_to_wstring(s);
+			if (w.size() > max_chyron)
+				w.resize(max_chyron);
+			return fs::wstring_to_utf8(w);
+		};
+		std::string safe_title  = truncate_for_chyron(audio::currently_playing.title);
+		std::string safe_artist = truncate_for_chyron(audio::currently_playing.artist);
+
+		if (!hook::SummonChyron(fs::utf8_to_ansi(safe_title).c_str(), fs::utf8_to_ansi(safe_artist).c_str(), audio::currently_playing.where.c_str()))
 		{
 			return false;
 		}

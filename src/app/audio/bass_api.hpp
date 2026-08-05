@@ -18,10 +18,11 @@ namespace bass_api
     inline constexpr DWORD bass_unicode = 0x80000000;
 
     // BASS_ChannelGetTags tag types
-    inline constexpr DWORD bass_tag_id3       = 0;     // ID3v1
-    inline constexpr DWORD bass_tag_id3v2     = 1;     // ID3v2
-    inline constexpr DWORD bass_tag_ogg       = 2;     // Vorbis Comments
-    inline constexpr DWORD bass_tag_riff_info = 0x100; // RIFF INFO
+    inline constexpr DWORD bass_tag_id3          = 0;     // ID3v1
+    inline constexpr DWORD bass_tag_id3v2        = 1;     // ID3v2 (raw, no length)
+    inline constexpr DWORD bass_tag_ogg          = 2;     // Vorbis Comments
+    inline constexpr DWORD bass_tag_id3v2_binary = 20;    // ID3v2 as TAG_BINARY { data; length } — BASS 2.4.18.3+
+    inline constexpr DWORD bass_tag_riff_info    = 0x100; // RIFF INFO
 
     /// Loads bass.dll from the plugin directory and resolves the required exports.
     bool load();

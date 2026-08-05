@@ -8,7 +8,17 @@ This changelog tracks the tagged releases recorded in this repository.
 
 ### Added
 - Added GitHub Actions CI workflow (`build.yml`) that compiles `Release | Win-x86` and uploads the `.asi` artifact on every push and pull request.
-- Embedded metadata tags (ID3v1, ID3v2, Vorbis Comments, RIFF INFO) are now read from music files and displayed in the in-game chyron and overlay. When tags are unavailable or unparseable, ECM-R falls back to the existing filename-derived "Artist - Title" convention on a per-field basis (e.g., a tagged title with no artist tag will still pick up the artist from the filename). (originally proposed and prototyped by @DeathWrench)
+- Added embedded metadata tag reading (ID3v1, ID3v2, Vorbis Comments, RIFF INFO) for the overlay and in-game chyron, with per-field fallback to the existing filename-derived `Artist - Title` convention when tags are absent or unparseable. (Originally proposed and prototyped by @DeathWrench.)
+
+### Changed
+- Hardened ID3v2 parser: replaced `BASS_TAG_ID3V2` (raw pointer without explicit length) with `BASS_TAG_ID3V2_BINARY` (type 20, requires BASS 2.4.18.3+), which provides a real `TAG_BINARY { data; length }` struct as the memory bound. On older BASS versions lacking type 20, ID3v2 parsing falls back silently to ID3v1/filename.
+- Hardened ID3v1 parser to use a BASS-compatible `TAG_ID3` struct layout instead of raw byte offsets, with a `static_assert` verifying the 128-byte packing.
+- Fixed RIFF INFO parser: now correctly parses the `KEY=VALUE\0` format documented by BASS instead of the incorrect `KEY\0VALUE\0` assumption.
+- Hardened Vorbis and RIFF walkers to guard the pointer before dereferencing, replacing unbounded `strlen`/`std::string(p)` with a bounded helper, and documented the sanity-guard as a heuristic, not a real bounds check.
+- Added UTF-8-aware truncation for long embedded title and artist values before displaying the chyron, using wstring conversion to avoid splitting multi-byte sequences at the 64-codepoint limit.
+
+### Fixed
+- Fixed the pre-existing overlay format-string bug by passing track metadata as data to `ImGui::Text`; titles containing `%` are now safe.
 
 ## [v0.5.13-alpha] - 2026-06-13
 

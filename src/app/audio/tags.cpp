@@ -8,6 +8,22 @@
 
 namespace
 {
+    // --- local structs matching BASS layouts ---
+
+    // BASS 2.4 TAG_ID3 — packed 128-byte ID3v1 structure.
+    // Layout: id[3] + title[30] + artist[30] + album[30] + year[4] + comment[30] + genre.
+    struct tag_id3
+    {
+        char           id[3];
+        char           title[30];
+        char           artist[30];
+        char           album[30];
+        char           year[4];
+        char           comment[30];
+        unsigned char  genre;
+    };
+    static_assert(sizeof(tag_id3) == 128, "TAG_ID3 packing mismatch against BASS 2.4 layout");
+
     // --- helpers ---
 
     // Bounds-checked byte read at ptr+offset; returns 0 if out of bounds.
@@ -63,19 +79,18 @@ namespace
     }
 
     // Decode a UTF-16 string to UTF-8. LE if little_endian==true, BE otherwise.
+    // Uses memcpy per-element to avoid strict-aliasing UB from reinterpret_cast.
     std::string utf16_to_utf8(const char* data, std::size_t len, bool little_endian)
     {
         if (len < 2) return {};
 
-        const auto* src = reinterpret_cast<const std::uint16_t*>(data);
         const std::size_t num_units = len / 2;
-
-        // Build a wide string, swapping bytes if needed.
         std::wstring wide;
         wide.reserve(num_units);
         for (std::size_t i = 0; i < num_units; ++i)
         {
-            std::uint16_t unit = src[i];
+            std::uint16_t unit;
+            std::memcpy(&unit, data + i * 2, sizeof(unit));
             if (!little_endian)
                 unit = static_cast<std::uint16_t>((unit << 8) | (unit >> 8));
             if (unit == 0) break; // null termination
@@ -85,67 +100,92 @@ namespace
         return fs::wstring_to_utf8(wide);
     }
 
+    // Bounded strlen: returns the number of bytes until NUL or end, whichever comes first.
+    std::size_t bounded_strlen(const char* p, const char* end)
+    {
+        const char* start = p;
+        while (p < end && *p != '\0')
+            ++p;
+        return static_cast<std::size_t>(p - start);
+    }
+
+    // ponytail: sanity upper bound for Vorbis/RIFF walkers — not a real buffer length.
+    // BASS does not expose a buffer size for these null-terminated tag strings, so the
+    // walker has no way to verify actual bounds. This guard only prevents infinite loops
+    // on corrupted data; it cannot guarantee OOB safety. Upgrade path: use format-specific
+    // BASS_TAG_*_BINARY constants if/when they are added.
+    inline constexpr std::size_t max_tag_walker_guard = 0x100000; // 1 MiB sanity limit
+
     // --- parsers ---
+
+    // BASS 2.4 TAG_BINARY — BASS_TAG_ID3V2_BINARY (type 20) returns this struct
+    // with the real buffer pointer and its byte length. Requires BASS 2.4.18.3+.
+    struct tag_binary
+    {
+        const void* data;
+        DWORD       length;
+    };
 
     void parse_id3v2(DWORD handle, std::string& title, std::string& artist)
     {
-        const auto* raw = static_cast<const char*>(bass_api::channel_get_tags(handle, bass_api::bass_tag_id3v2));
-        if (raw == nullptr) return;
+        const auto* bin = static_cast<const tag_binary*>(
+            bass_api::channel_get_tags(handle, bass_api::bass_tag_id3v2_binary));
+        if (bin == nullptr || bin->data == nullptr || bin->length < 10) return;
 
-        // We need the tag size. BASS returns the raw ID3v2 data but the tag size
-        // must be derived from the header. Minimum ID3v2 header is 10 bytes.
-        // BASS docs don't specify exactly how much data is returned, so we use
-        // the declared tag size from the header to bound pointer arithmetic.
+        const auto* raw = static_cast<const char*>(bin->data);
+        const std::size_t buf_len = static_cast<std::size_t>(bin->length);
 
         // First 3 bytes: "ID3"
         if (std::memcmp(raw, "ID3", 3) != 0) return;
 
-        const std::uint8_t version_major = safe_byte(raw, 10, 3);
-        const std::uint8_t flags          = safe_byte(raw, 10, 5);
+        const std::uint8_t version_major = static_cast<std::uint8_t>(raw[3]);
+        const std::uint8_t flags          = static_cast<std::uint8_t>(raw[5]);
 
         // We only handle v2.3 and v2.4.
         if (version_major != 3 && version_major != 4) return;
 
         // Tag size: v2.4 is syncsafe; v2.3 is big-endian.
-        const std::uint32_t tag_size = (version_major == 4)
-            ? syncsafe_u32(raw, 10, 6)
-            : be_u32(raw, 10, 6);
+        const std::uint32_t declared_tag_size = (version_major == 4)
+            ? syncsafe_u32(raw, buf_len, 6)
+            : be_u32(raw, buf_len, 6);
 
-        // ponytail: we trust BASS returns at least header+tag_size bytes; if the
-        // stream data is truncated by BASS, our bounds checks on read will catch
-        // any overflow via safe_byte/be_u32 returning 0.
-        const std::size_t total = static_cast<std::size_t>(10) + tag_size;
+        // Declared size must fit within the real buffer (minus 10-byte header).
+        if (declared_tag_size > static_cast<std::uint32_t>(buf_len - 10)) return;
+        const std::size_t effective_total = std::min(buf_len, static_cast<std::size_t>(10) + declared_tag_size);
 
         // Extended header
         std::size_t cursor = 10;
         if ((flags & 0x40) != 0)
         {
-            if (cursor + 4 > total) return;
+            // Need 4 bytes for extended header size field.
+            if (cursor > effective_total || effective_total - cursor < 4) return;
             const std::uint32_t ext_size = (version_major == 4)
-                ? syncsafe_u32(raw, total, cursor)  // size itself is syncsafe
-                : be_u32(raw, total, cursor);
+                ? syncsafe_u32(raw, effective_total, cursor)
+                : be_u32(raw, effective_total, cursor);
+
+            // Validate before adding: cursor + 4 + ext_size must fit within effective_total.
+            if (ext_size > static_cast<std::uint32_t>(effective_total - cursor - 4)) return;
             cursor += 4 + ext_size;
-            if (cursor >= total) return;
+            if (cursor >= effective_total) return;
         }
 
-        // ponytail: O(n) frame scan, single-pass; if ID3v2 gets massive (>1 MB)
-        // add an early-exit byte budget.
-        while (cursor + 10 <= total)
+        // O(n) frame scan; bounded by effective_total.
+        while (cursor + 10 <= effective_total)
         {
             const char id[5] = { raw[cursor], raw[cursor + 1], raw[cursor + 2], raw[cursor + 3], '\0' };
 
             // Padding byte or end
             if (id[0] == '\0') break;
 
+            // Frame size: v2.3 uses big-endian, v2.4 syncsafe.
             std::uint32_t frame_size = (version_major == 4)
-                ? syncsafe_u32(raw, total, cursor + 4)
-                : be_u32(raw, total, cursor + 4);
+                ? syncsafe_u32(raw, effective_total, cursor + 4)
+                : be_u32(raw, effective_total, cursor + 4);
 
-            // v2.3 doesn't use syncsafe for frame sizes, ok.
-            // Skip flags
-            cursor += 10;
+            cursor += 10; // skip frame header
 
-            if (cursor + frame_size > total) break;
+            // Frame size must not exceed remaining buffer.
+            if (cursor > effective_total || frame_size > effective_total - cursor) break;
 
             const bool is_title  = (std::strcmp(id, "TIT2") == 0);
             const bool is_artist = (std::strcmp(id, "TPE1") == 0);
@@ -208,27 +248,25 @@ namespace
         const auto* raw = static_cast<const char*>(bass_api::channel_get_tags(handle, bass_api::bass_tag_id3));
         if (raw == nullptr) return;
 
-        // 128 bytes starting with "TAG"
-        // Guard with isprint check on first byte in case BASS returns garbage
-        // std::memcmp(raw, "TAG", 3) — but we can't bounds-check length from BASS;
-        // BASS returns exactly 128 bytes or nullptr. Trust it.
+        // BASS_TAG_ID3 returns a pointer to the 128-byte TAG_ID3 structure.
+        // Validate the "TAG" magic before accessing fields.
+        const auto& tag = *static_cast<const tag_id3*>(static_cast<const void*>(raw));
+        if (std::memcmp(tag.id, "TAG", 3) != 0) return;
 
-        if (std::memcmp(raw, "TAG", 3) != 0) return;
-
-        // Title at bytes 3-32 (30 bytes), artist at bytes 33-62 (30 bytes)
-        auto read_field = [&](std::size_t off, std::size_t len, std::string& target)
+        // Per-field read helper — don't overwrite a value already filled by ID3v2.
+        auto read_field = [](const char* field, std::size_t len, std::string& target)
         {
-            if (target != "N/A") return; // don't overwrite a better value
+            if (target != "N/A") return;
             std::string value;
-            latin1_to_utf8(raw + off, len, value);
+            latin1_to_utf8(field, len, value);
             strip_trailing(value);
             logger::trim(value);
             if (!value.empty())
                 target = std::move(value);
         };
 
-        read_field(3, 30, title);
-        read_field(33, 30, artist);
+        read_field(tag.title,  sizeof(tag.title),  title);
+        read_field(tag.artist, sizeof(tag.artist), artist);
     }
 
     void parse_vorbis(DWORD handle, std::string& title, std::string& artist)
@@ -238,13 +276,17 @@ namespace
 
         // Vorbis comments: "KEY=VALUE\0KEY=VALUE\0...\0\0"
         const char* p = raw;
-        const char* const end = p + 0x100000; // ponytail: 1 MB upper bound guard
-        while (*p != '\0' && p < end)
+        const char* const walker_end = p + max_tag_walker_guard; // sanity limit, not real bounds
+
+        // Guard before dereference — condition order matters.
+        while (p < walker_end && *p != '\0')
         {
-            const char* eq = std::strchr(p, '=');
+            const char* eq = static_cast<const char*>(std::memchr(p, '=', static_cast<std::size_t>(walker_end - p)));
             if (eq == nullptr)
             {
-                p += std::strlen(p) + 1;
+                // Skip this malformed entry, advance to next \0
+                const std::size_t len = bounded_strlen(p, walker_end);
+                p += len + 1;
                 continue;
             }
 
@@ -253,7 +295,9 @@ namespace
             logger::to_upper(key);
 
             const char* value_start = eq + 1;
-            std::string value(value_start);
+            const std::size_t value_max = static_cast<std::size_t>(walker_end - value_start);
+            const std::size_t value_len  = bounded_strlen(value_start, value_start + value_max);
+            std::string value(value_start, value_len);
             strip_trailing(value);
             logger::trim(value);
 
@@ -267,7 +311,7 @@ namespace
 
             if (title != "N/A" && artist != "N/A") return;
 
-            p += std::strlen(p) + 1;
+            p += key_len + 1 + value_len + 1; // key + '=' + value + '\0'
         }
     }
 
@@ -276,21 +320,28 @@ namespace
         const auto* raw = static_cast<const char*>(bass_api::channel_get_tags(handle, bass_api::bass_tag_riff_info));
         if (raw == nullptr) return;
 
-        // RIFF INFO: "key\0value\0...key\0value\0\0"
+        // RIFF INFO: "INAM=text\0IART=text\0...\0\0" per BASS documentation.
         const char* p = raw;
-        const char* const end = p + 0x100000; // ponytail: 1 MB upper bound guard
-        while (*p != '\0' && p < end)
+        const char* const walker_end = p + max_tag_walker_guard; // sanity limit, not real bounds
+
+        // Guard before dereference.
+        while (p < walker_end && *p != '\0')
         {
-            std::string key(p);
-            p += key.size() + 1;
+            const char* eq = static_cast<const char*>(std::memchr(p, '=', static_cast<std::size_t>(walker_end - p)));
+            if (eq == nullptr) break; // malformed entry, stop
 
-            if (*p == '\0') break; // empty value terminates
+            const auto key_len = static_cast<std::size_t>(eq - p);
+            if (key_len == 0) break; // empty key
 
-            std::string ansi_value(p);
-            std::string value = fs::ansi_to_utf8(ansi_value);
+            std::string key(p, key_len);
+            logger::to_upper(key);
+
+            const char* value_start = eq + 1;
+            const std::size_t value_max = static_cast<std::size_t>(walker_end - value_start);
+            const std::size_t value_len  = bounded_strlen(value_start, value_start + value_max);
+            std::string value = fs::ansi_to_utf8(std::string(value_start, value_len));
             strip_trailing(value);
             logger::trim(value);
-            logger::to_upper(key);
 
             if (!value.empty())
             {
@@ -302,7 +353,7 @@ namespace
 
             if (title != "N/A" && artist != "N/A") return;
 
-            p += ansi_value.size() + 1;
+            p += key_len + 1 + value_len + 1; // key + '=' + value + '\0'
         }
     }
 
