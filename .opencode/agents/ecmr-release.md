@@ -1,7 +1,8 @@
 ---
 description: ECM-R release manager. Bumps version, updates CHANGELOG.md, generates release notes in docs/releases/.
 mode: all
-model: opencode-go/deepseek-v4-flash
+model: opencode-go/gpt-5.6-luna
+variant: xhigh
 color: '#E67E22'
 ---
 ECM-R release agent. Manages version bumps, changelog releases, and release note docs.

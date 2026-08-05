@@ -1,7 +1,8 @@
 ---
 description: ECM-R idea explorer. Validates feature/bug/enhancement ideas against the codebase. Assesses feasibility, impact, and complexity. Delegates viable ideas to ecmr-plan.
 mode: primary
-model: opencode-go/deepseek-v4-pro
+model: opencode-go/gpt-5.6-luna
+variant: xhigh
 color: '#9B59B6'
 permission:
   edit: deny

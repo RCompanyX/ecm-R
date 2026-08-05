@@ -1,7 +1,8 @@
 ---
 description: ECM-R planner. Analyzes, researches, creates plan. Delegates execution to ecmr-dev.
 mode: primary
-model: opencode-go/deepseek-v4-pro
+model: opencode-go/gpt-5.6-luna
+variant: xhigh
 color: '#2ECC71'
 permission:
   edit: deny
