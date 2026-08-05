@@ -13,7 +13,7 @@ This changelog tracks the tagged releases recorded in this repository.
 ### Changed
 - Hardened ID3v2 parser: replaced `BASS_TAG_ID3V2` (raw pointer without explicit length) with `BASS_TAG_ID3V2_BINARY` (type 20, requires BASS 2.4.18.3+), which provides a real `TAG_BINARY { data; length }` struct as the memory bound. On older BASS versions lacking type 20, ID3v2 parsing falls back silently to ID3v1/filename.
 - Hardened ID3v1 parser to use a BASS-compatible `TAG_ID3` struct layout instead of raw byte offsets, with a `static_assert` verifying the 128-byte packing.
-- Fixed RIFF INFO parser: now correctly parses the `KEY=VALUE\0` format documented by BASS instead of the incorrect `KEY\0VALUE\0` assumption.
+- RIFF INFO metadata parsing now handles the BASS-documented `KEY=VALUE\0` format, while malformed entries fall back safely.
 - Hardened Vorbis and RIFF walkers to guard the pointer before dereferencing, replacing unbounded `strlen`/`std::string(p)` with a bounded helper, and documented the sanity-guard as a heuristic, not a real bounds check.
 - Added UTF-8-aware truncation for long embedded title and artist values before displaying the chyron, using wstring conversion to avoid splitting multi-byte sequences at the 64-codepoint limit.
 
