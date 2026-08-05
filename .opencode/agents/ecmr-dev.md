@@ -12,11 +12,12 @@ ALWAYS on every conversation:
 3. Follow AGENTS.md (all 10 sections) + docs/application-context.md.
 4. Route work by type: viability/planning → evolutive → incidents.
 5. Before non-trivial work: read docs/application-context.md, confirm in code.
-6. Branch: dev_..., language: English, preserve ECM-R / ECM / BttrDrgn attribution.
-7. **Branch policy — always create a `dev_…` branch before any edit.**
-   - Applies to ALL work types (evolutive, incidents, fixes) — no exceptions.
-   - Slug format: lowercase ASCII, words joined by `_` or `-`, no spaces, ≤ ~40 chars. Final name: `dev_<slug>` (per AGENTS.md §10).
-   - Pre-flight, in this order, **before** touching any file:
+6. Work on the active working branch. Only create `dev_<slug>` when starting from `main` or if the user explicitly requests a new branch. Language: English, preserve ECM-R / ECM / BttrDrgn attribution.
+7. **Branch policy — conditional, not unconditional.**
+   - **Detect active branch and target/base branch before editing.**
+   - **If already on a non-`main` branch and the user authorized continuing there:** stay on that branch. Do not create a new `dev_*` branch, do not branch off it, do not checkout `main`. Collision checks do not apply.
+   - **Only create `dev_<slug>` when starting work from `main`** (or when the user explicitly requests a new branch). Slug format: lowercase ASCII, words joined by `_` or `-`, no spaces, ≤ ~40 chars. Final name: `dev_<slug>` (per AGENTS.md §10).
+   - **Pre-flight for branch creation (only when creating from `main`):**, in this order, **before** touching any file:
      1. `git status` — if the working tree is dirty, stop and ask the user (stash / commit / abort).
      2. `git fetch origin main` to know the latest remote state.
      3. Ensure the local `main` is up to date:
@@ -26,8 +27,9 @@ ALWAYS on every conversation:
         - On any match, **stop and ask the user**: (a) reuse the existing branch, (b) provide a new slug, or (c) auto-suffix with `-2`.
      5. Create: `git checkout -b dev_<slug>`.
      6. Log the created branch name and base branch so it is visible in the conversation output.
-   - No pre-create confirmation gate — the rule is the gate; collisions are the only stop condition.
-   - All subsequent commits, CHANGELOG entries, and any PR for the task must stay on this branch.
+   - **When continuing an existing branch:** log the active branch and target/base branch being used. Do not force checkout/pull of `main` as a preflight.
+   - No pre-create confirmation gate — the rule is the gate; collisions are the only stop condition (and only apply when creating a new branch).
+   - All subsequent commits, CHANGELOG entries, and any PR for the task must stay on the working branch.
 
 ## Branch format
 - Pattern: `dev_<slug>` (AGENTS.md §10).

@@ -33,6 +33,11 @@
   - **Viability/planning**: assess fit/risk, reject bad scope, plan approved work. Plan output must include CHANGELOG.md entries under `## [Unreleased]` — add to existing section or create new subsection headers (### Added, ### Changed, ### Fixed, etc) as needed.
   - **Evolutive**: build approved features/UX/config/docs. Keep CHANGELOG.md `## [Unreleased]` entries updated as work progresses (add/change/fix entries, not just at release time).
   - **Incidents**: reproduce bug, isolate regression, fix, validate frontend/loading/racing/overlay/config.
+- **CHANGELOG classification rule** — classify each entry against the base/target branch (normally `main`), not against the working branch:
+  - Feature absent from base/target branch → `### Added` (implementation + hardening of that feature). Subsequent behavioral changes to the same in-progress feature → `### Changed`.
+  - `### Fixed` is reserved for: (a) bugs/regressions of functionality already present in base/target branch, or (b) bugs introduced during the current work and fixed before completion — clearly marked as such.
+  - Do not file internal corrections of a new feature under `### Fixed` as if they were patching already-released functionality.
+  - Planning output must state the chosen classification and the rationale (base-branch comparison).
 
 ### 6. Pre-Work Checks
 - Non-trivial work: read `docs/application-context.md`, then confirm in code.
@@ -58,7 +63,12 @@
 
 ### 10. Workflow
 - Language: English.
-- Branch: `dev_<slug>` (lowercase ASCII, words joined by `_` or `-`, no spaces, ≤ ~40 chars). Create before any edit (no pre-create confirmation gate; collisions are the only stop condition — see `ecmr-dev` branch policy).
+- Branch policy:
+  - **Detect active branch and target/base branch before editing.**
+  - **If already on a non-`main` branch and the user authorized continuing there:** stay on that branch. Do not create a new `dev_*` branch, do not branch off it, do not checkout `main`. Collision checks do not apply.
+  - **Only create `dev_<slug>` when starting work from `main`** (or when the user explicitly requests a new branch). Slug format: lowercase ASCII, words joined by `_` or `-`, no spaces, ≤ ~40 chars. No pre-create confirmation gate — the rule is the gate; collisions are the only stop condition (see `ecmr-dev` branch policy).
+  - When continuing an existing branch, do not force checkout/pull of `main` as a preflight. Log the active branch and target/base branch being used.
+  - All commits, CHANGELOG entries, and any PR for the task stay on the working branch.
 - Copyright/attribution: Preserve ECM-R / ECM / BttrDrgn lineage.
 - **Git commits: never commit without explicit user approval.** Before any `git commit`, `git push`, or GitHub write operation, you must ask the user and receive confirmation. Informational/read-only Git/GitHub operations (status, diff, log, read) do not require approval.
 
@@ -74,13 +84,13 @@ ECM-R uses specialized subagents managed through OpenCode. Route work to the cor
 #### `@ecmr-plan` — Planning Agent
 - **Mode:** Read-only. Never edits files or runs builds.
 - **Purpose:** Receive feature/bug requests → analyze viability and risk → produce implementation plan covering: affected GameFlowStates, audio transitions, hooks, overlay flows, persisted settings.
-- **Output:** Concise plan document.
+- **Output:** Concise plan document. Plan must identify the base/target branch and classify each CHANGELOG entry against it (per §5 classification rule).
 - **Delegation:** After plan is approved, delegates execution to `@ecmr-dev` via Task tool with full plan text.
 
 #### `@ecmr-dev` — Developer Agent
-- **Mode:** Read-write. Creates branches, edits code, runs builds.
+- **Mode:** Read-write. Creates branches (conditionally, per §10 branch policy), edits code, runs builds.
 - **Purpose:** Execute approved plans from `@ecmr-plan`. Implement features, fix bugs, update docs.
-- **Rules:** Follows AGENTS.md (all 10 sections) + `docs/application-context.md`. Creates `dev_...` branch before any edit. Builds `Release | Win-x86`. Updates CHANGELOG.md `## [Unreleased]` as work progresses.
+- **Rules:** Follows AGENTS.md (all 10 sections) + `docs/application-context.md`. Branch creation is conditional — only from `main` or when explicitly requested. Builds `Release | Win-x86`. Updates CHANGELOG.md `## [Unreleased]` as work progresses.
 - **Stack:** C++17, Premake, ImGui, BASS, MinHook.
 
 #### `@ecmr-release` — Release Agent

@@ -31,12 +31,14 @@ ECM-R defines three specialized subagents for development workflows. They are de
 | Agent | Role | Permissions | Key constraint |
 | --- | --- | --- | --- |
 | `ecmr-plan` | Planning | Read-only | Never edits files; delegates execution to `ecmr-dev` |
-| `ecmr-dev` | Development | Read-write | Creates `dev_...` branch before any edit; builds `Release\|Win-x86` |
+| `ecmr-dev` | Development | Read-write | Creates `dev_...` branch only from `main` or when explicitly requested; builds `Release\|Win-x86` |
 | `ecmr-release` | Releases | Read-write | Manages version bumps, changelog, and release notes; never touches `docs/application-context.md` |
 
 #### Planning agent (`ecmr-plan`)
 
 The entry point for non-trivial feature and bug work. Analyzes requests, assesses viability and risk, and produces an implementation plan. Plans cover: affected `GameFlowState` values, audio transitions, hook surfaces, overlay flows, and persisted settings (per AGENTS.md §8).
+
+Plans must identify the base/target branch and classify each CHANGELOG entry against it (per AGENTS.md §5 classification rule): features absent from the base branch → `### Added`, behavioral changes to in-progress features → `### Changed`, bugs of existing base-branch functionality → `### Fixed`.
 
 After the plan is approved, `ecmr-plan` delegates execution to `ecmr-dev` via the Task tool with the full plan text.
 
@@ -44,10 +46,10 @@ After the plan is approved, `ecmr-plan` delegates execution to `ecmr-dev` via th
 
 Receives approved plans and implements them. Responsibilities:
 
-- Creates a `dev_...` branch following AGENTS.md §10 rules.
+- Works on the active working branch; creates a `dev_...` branch only when starting from `main` or when explicitly requested (per AGENTS.md §10 branch policy).
 - Implements features, bug fixes, or documentation changes.
 - Builds the plugin targeting `Release | Win-x86`.
-- Keeps `CHANGELOG.md` `## [Unreleased]` entries updated as work progresses.
+- Keeps `CHANGELOG.md` `## [Unreleased]` entries updated as work progresses, classifying each entry against the base/target branch.
 - Follows all rules in AGENTS.md and `docs/application-context.md`.
 
 #### Release agent (`ecmr-release`)
@@ -64,7 +66,7 @@ The release agent has a strict boundary: it never modifies `docs/application-con
 #### Typical workflow
 
 1. **Planning phase:** `ecmr-plan` analyzes the request and produces a plan.
-2. **Implementation phase:** `ecmr-dev` executes the plan on a `dev_...` branch.
+2. **Implementation phase:** `ecmr-dev` executes the plan on the active working branch (only creates `dev_...` when starting from `main` or under explicit request).
 3. **Release phase:** `ecmr-release` packages the completed work into a versioned release.
 
 See AGENTS.md for detailed agent instructions and rules.

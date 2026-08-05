@@ -81,7 +81,7 @@ Identify regression risks from the reliability checklist:
 
 ### 4. Route the result
 
-- **VIABLE**: Delegate to `@ecmr-plan` subagent via Task tool. Pass: original idea + full feasibility assessment + relevant file paths + identified risks. The plan agent will produce the detailed implementation plan.
+- **VIABLE**: Delegate to `@ecmr-plan` subagent via Task tool. Pass: original idea + full feasibility assessment + relevant file paths + identified risks. Include whether the idea is a **new feature absent from the base/target branch** (for `### Added` classification) or a **fix of existing base-branch behavior** (for `### Fixed` classification), so the planner can classify CHANGELOG entries correctly (per AGENTS.md §5). The plan agent will produce the detailed implementation plan.
 - **NOT_VIABLE**: Explain clearly why. Cite specific constraints, architectural conflicts, or out-of-scope boundaries. Suggest alternatives if any exist.
 - **NEEDS_CLARIFICATION**: List specific questions. Wait for user response before proceeding.
 
