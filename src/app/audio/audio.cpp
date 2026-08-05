@@ -108,7 +108,7 @@ namespace
 		// to avoid splitting multi-byte UTF-8 sequences mid-character.
 		// Upgrade path: configurable max.
 		constexpr std::size_t max_chyron = 64;
-		auto truncate_for_chyron = [](const std::string& src) -> std::string
+		auto truncate_for_chyron = [max_chyron](const std::string& src) -> std::string
 		{
 			std::string s = src;
 			logger::trim(s);

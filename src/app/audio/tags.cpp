@@ -151,7 +151,7 @@ namespace
 
         // Declared size must fit within the real buffer (minus 10-byte header).
         if (declared_tag_size > static_cast<std::uint32_t>(buf_len - 10)) return;
-        const std::size_t effective_total = std::min(buf_len, static_cast<std::size_t>(10) + declared_tag_size);
+        const std::size_t effective_total = (std::min)(buf_len, static_cast<std::size_t>(10) + declared_tag_size);
 
         // Extended header
         std::size_t cursor = 10;
