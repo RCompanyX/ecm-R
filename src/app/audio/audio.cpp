@@ -17,6 +17,19 @@ namespace
 {
     constexpr int max_playback_history_entries = 50;
 
+    struct stream_guard
+    {
+        bass_api::stream_handle_t handle;
+
+        ~stream_guard()
+        {
+            if (handle != 0)
+            {
+                bass_api::stream_free(handle);
+            }
+        }
+    };
+
 	// Keeps persisted and context-specific volumes inside ECM-R's 0-100 range.
 	std::int32_t clamp_volume(const std::int32_t volume)
 	{
@@ -711,10 +724,35 @@ bool audio::can_resume_current_song()
 
 void audio::enumerate_playlist()
 {
+	audio::playlist_metadata.clear();
 	std::vector<std::string> files = fs::get_all_files(audio::playlist_dir, audio::supported_files);
 	for (std::string& file : files)
 	{
 		audio::playlist_files.emplace_back(file, "N/A");
+	}
+}
+
+void audio::resolve_playlist_metadata()
+{
+	if (!bass_api::is_available())
+	{
+		return;
+	}
+
+	for (const auto& track : audio::playlist_files)
+	{
+		if (audio::playlist_metadata.find(track.first) != audio::playlist_metadata.end())
+		{
+			continue;
+		}
+
+		playing_t metadata{"N/A", "N/A", audio::playlist_name};
+		{
+			const bass_api::stream_handle_t stream = bass_api::stream_create_file(track.first.c_str());
+			stream_guard guard{stream};
+			resolve_file_metadata(track.first.c_str(), stream, metadata.title, metadata.artist);
+		}
+		audio::playlist_metadata.emplace(track.first, std::move(metadata));
 	}
 }
 
@@ -830,6 +868,7 @@ playing_t audio::currently_playing = {"N/A", "N/A", "N/A"};
 std::string audio::playlist_name = "Music";
 std::string audio::playlist_dir = "Music";
 std::vector<std::pair<std::string, std::string>> audio::playlist_files;
+std::unordered_map<std::string, playing_t> audio::playlist_metadata;
 std::vector<int> audio::playlist_order;
 std::vector<int> audio::playback_history;
 int audio::current_song_index = 0;

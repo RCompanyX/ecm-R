@@ -11,6 +11,7 @@ This changelog tracks the tagged releases recorded in this repository.
 - Added embedded metadata tag reading (ID3v1, ID3v2, Vorbis Comments, RIFF INFO) for the overlay and in-game chyron, with per-field fallback to the existing filename-derived `Artist - Title` convention when tags are absent or unparseable. (Originally proposed and prototyped by [@DeathWrench](https://github.com/DeathWrench).)
 
 ### Changed
+- Playlist entries now use embedded artist/title metadata when available, while retaining the existing filename-derived fallback.
 - Hardened ID3v2 parser: replaced `BASS_TAG_ID3V2` (raw pointer without explicit length) with `BASS_TAG_ID3V2_BINARY` (type 20, requires BASS 2.4.18.3+), which provides a real `TAG_BINARY { data; length }` struct as the memory bound. On older BASS versions lacking type 20, ID3v2 parsing falls back silently to ID3v1/filename.
 - Hardened ID3v1 parser to use a BASS-compatible `TAG_ID3` struct layout instead of raw byte offsets, with a `static_assert` verifying the 128-byte packing.
 - RIFF INFO metadata parsing now handles the BASS-documented `KEY=VALUE\0` format, while malformed entries fall back safely.

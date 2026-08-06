@@ -31,6 +31,8 @@ public:
 	static void set_volume(std::int32_t vol_in);
 	/// Rebuilds the track list from the configured playlist directory and trax routing.
 	static void enumerate_playlist();
+	/// Resolves and caches playlist display metadata after BASS is available.
+	static void resolve_playlist_metadata();
 	/// Advances playback according to the current game state, mute triggers, and track completion.
 	static void update();
 	/// Recomputes the playable order for the active frontend or in-game context.
@@ -79,6 +81,7 @@ public:
 	static std::string playlist_name;
 	static std::string playlist_dir;
 	static std::vector<std::pair<std::string, std::string>> playlist_files;
+	static std::unordered_map<std::string, playing_t> playlist_metadata;
 	static std::vector<int> playlist_order;
   static std::vector<int> playback_history;
 	static int current_song_index;
