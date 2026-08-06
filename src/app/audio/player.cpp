@@ -2,6 +2,7 @@
 #include "fs/fs.hpp"
 #include "global.hpp"
 #include "audio.hpp"
+#include "player.hpp"
 #include "bass_api.hpp"
 #include "hook/hook.hpp"
 #include "settings/settings.hpp"
