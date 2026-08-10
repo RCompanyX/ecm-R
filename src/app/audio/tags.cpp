@@ -109,11 +109,10 @@ namespace
         return static_cast<std::size_t>(p - start);
     }
 
-    // ponytail: sanity upper bound for Vorbis/RIFF walkers — not a real buffer length.
-    // BASS does not expose a buffer size for these null-terminated tag strings, so the
-    // walker has no way to verify actual bounds. This guard only prevents infinite loops
-    // on corrupted data; it cannot guarantee OOB safety. Upgrade path: use format-specific
-    // BASS_TAG_*_BINARY constants if/when they are added.
+    // ponytail: sanity upper bound for raw BASS tag walkers — not a real buffer length.
+    // BASS does not expose a buffer size for these tag strings, so the walker has no way
+    // to verify actual bounds. This guard only prevents runaway scans on corrupted data;
+    // binary tag APIs remain preferred whenever available.
     inline constexpr std::size_t max_tag_walker_guard = 0x100000; // 1 MiB sanity limit
 
     // --- parsers ---
@@ -126,14 +125,10 @@ namespace
         DWORD       length;
     };
 
-    void parse_id3v2(DWORD handle, std::string& title, std::string& artist)
+    void parse_id3v2_block(const char* raw, const std::size_t buf_len,
+                           std::string& title, std::string& artist)
     {
-        const auto* bin = static_cast<const tag_binary*>(
-            bass_api::channel_get_tags(handle, bass_api::bass_tag_id3v2_binary));
-        if (bin == nullptr || bin->data == nullptr || bin->length < 10) return;
-
-        const auto* raw = static_cast<const char*>(bin->data);
-        const std::size_t buf_len = static_cast<std::size_t>(bin->length);
+        if (raw == nullptr || buf_len < 10) return;
 
         // First 3 bytes: "ID3"
         if (std::memcmp(raw, "ID3", 3) != 0) return;
@@ -241,6 +236,26 @@ namespace
 
             cursor += frame_size;
         }
+    }
+
+    void parse_id3v2(DWORD handle, std::string& title, std::string& artist)
+    {
+        const auto* bin = static_cast<const tag_binary*>(
+            bass_api::channel_get_tags(handle, bass_api::bass_tag_id3v2_binary));
+        if (bin != nullptr && bin->data != nullptr && bin->length >= 10)
+        {
+            parse_id3v2_block(static_cast<const char*>(bin->data),
+                              static_cast<std::size_t>(bin->length), title, artist);
+            if (title != "N/A" && artist != "N/A")
+                return;
+        }
+
+        // Older BASS 2.4 builds expose the ID3v2 block without its length.
+        // Use the declared ID3 size inside a conservative scan ceiling so MP2/AIFF
+        // remain readable without weakening the bounded binary path above.
+        const auto* raw = static_cast<const char*>(
+            bass_api::channel_get_tags(handle, bass_api::bass_tag_id3v2));
+        parse_id3v2_block(raw, max_tag_walker_guard, title, artist);
     }
 
     void parse_id3v1(DWORD handle, std::string& title, std::string& artist)

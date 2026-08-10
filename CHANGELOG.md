@@ -12,7 +12,7 @@ This changelog tracks the tagged releases recorded in this repository.
 
 ### Changed
 - Playlist entries now use embedded artist/title metadata when available, while retaining the existing filename-derived fallback.
-- Hardened ID3v2 parser: replaced `BASS_TAG_ID3V2` (raw pointer without explicit length) with `BASS_TAG_ID3V2_BINARY` (type 20, requires BASS 2.4.18.3+), which provides a real `TAG_BINARY { data; length }` struct as the memory bound. On older BASS versions lacking type 20, ID3v2 parsing falls back silently to ID3v1/filename.
+- Hardened ID3v2 parser: prefers `BASS_TAG_ID3V2_BINARY` (type 20) with an explicit memory bound, then falls back to the legacy `BASS_TAG_ID3V2` block on older BASS 2.4 builds so MP2/AIFF metadata remains readable; malformed tags still fall back to ID3v1/filename.
 - Hardened ID3v1 parser to use a BASS-compatible `TAG_ID3` struct layout instead of raw byte offsets, with a `static_assert` verifying the 128-byte packing.
 - RIFF INFO metadata parsing now handles the BASS-documented `KEY=VALUE\0` format, while malformed entries fall back safely.
 - Hardened Vorbis and RIFF walkers to guard the pointer before dereferencing, replacing unbounded `strlen`/`std::string(p)` with a bounded helper, and documented the sanity-guard as a heuristic, not a real bounds check.
