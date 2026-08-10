@@ -270,18 +270,14 @@ namespace
 	}
 
 	// Plays a concrete playlist entry and optionally records it in shuffle history.
-	void play_song_from_playlist_entry(const int playlist_entry_index, const bool record_history)
+	bool play_song_from_playlist_entry(const int playlist_entry_index, const bool record_history)
 	{
 		if (playlist_entry_index < 0 || playlist_entry_index >= static_cast<int>(audio::playlist_files.size()))
 		{
-			return;
+			return false;
 		}
 
-     if (record_history && audio::shuffle_enabled)
-		{
-			record_playback_history(playlist_entry_index);
-		}
-
+		bool played = false;
 		switch (global::state)
 		{
 		case GameFlowState::LoadingFrontend:
@@ -290,18 +286,25 @@ namespace
 		case GameFlowState::LoadingRegion:
 		case GameFlowState::Racing:
 		default:
-			audio::play_file(audio::playlist_files[playlist_entry_index].first, 0);
-          sync_pause_state();
+			played = audio::play_file(audio::playlist_files[playlist_entry_index].first, 0);
+			sync_pause_state();
 			break;
 		}
+
+		if (played && record_history && audio::shuffle_enabled)
+		{
+			record_playback_history(playlist_entry_index);
+		}
+
+		return played;
 	}
 
 	// Plays a song by its position inside the active playlist order.
-    void play_song_from_playlist_order(const int song_index, const bool record_history = true)
+    bool play_song_from_playlist_order(const int song_index, const bool record_history = true)
 	{
 		if (song_index < 0 || song_index >= static_cast<int>(audio::playlist_order.size()))
 		{
-			return;
+			return false;
 		}
 
 		int playlist_entry_index = audio::playlist_order[song_index];
@@ -311,7 +314,7 @@ namespace
 			playlist_entry_index = static_cast<int>(audio::playlist_files.size()) - 1;
 		}
 
-		play_song_from_playlist_entry(playlist_entry_index, record_history);
+		return play_song_from_playlist_entry(playlist_entry_index, record_history);
 	}
 
 	// Rebuilds playlist ordering when the active frontend or in-game context changes.
@@ -332,35 +335,6 @@ namespace
 		return !audio::playlist_order.empty();
 	}
 
-	// Moves the current song pointer while honoring repeat and end-of-playlist state.
-	void move_current_song_index(const int delta)
-	{
-		const int last_song_index = static_cast<int>(audio::playlist_order.size()) - 1;
-		const int next_song_index = audio::current_song_index + delta;
-
-		if (next_song_index > last_song_index)
-		{
-			if (!audio::repeat_enabled)
-			{
-				audio::playlist_ended = true;
-				audio::current_song_index = static_cast<int>(audio::playlist_order.size());
-				return;
-			}
-
-			audio::create_playlist_order();
-			audio::current_song_index = 0;
-			return;
-		}
-
-		if (next_song_index < 0)
-		{
-			audio::current_song_index = audio::repeat_enabled ? last_song_index : 0;
-			return;
-		}
-
-		audio::current_song_index = next_song_index;
-	}
-
 	// Restores a previously visited shuffle entry if the requested history position exists.
 	bool try_play_song_from_history(const int history_index)
 	{
@@ -371,8 +345,14 @@ namespace
 
 		const int playlist_entry_index = audio::playback_history[history_index];
 		sync_current_song_index_from_playlist_entry(playlist_entry_index);
-		play_song_from_playlist_entry(playlist_entry_index, false);
-		return true;
+		if (play_song_from_playlist_entry(playlist_entry_index, false))
+		{
+			return true;
+		}
+
+		audio::playback_history.erase(audio::playback_history.begin() + history_index);
+		audio::playback_history_index = (std::min)(history_index, static_cast<int>(audio::playback_history.size()) - 1);
+		return false;
 	}
 
 	// Moves relative to the current song, using shuffle history when available.
@@ -417,14 +397,62 @@ namespace
 			}
 		}
 
-		move_current_song_index(delta);
+		const int playlist_size = static_cast<int>(audio::playlist_order.size());
+		int next_song_index = audio::current_song_index + delta;
 
-		if (audio::current_song_index < 0 || audio::current_song_index >= static_cast<int>(audio::playlist_order.size()))
+		if (next_song_index >= playlist_size)
 		{
-			return;
+			if (delta > 0 && audio::repeat_enabled)
+			{
+				audio::create_playlist_order();
+				next_song_index = 0;
+			}
+			else if (delta > 0)
+			{
+				audio::playlist_ended = true;
+				audio::current_song_index = playlist_size;
+				return;
+			}
+			else
+			{
+				next_song_index = playlist_size - 1;
+			}
+		}
+		else if (next_song_index < 0)
+		{
+			next_song_index = audio::repeat_enabled ? playlist_size - 1 : 0;
 		}
 
-		play_song_from_playlist_order(audio::current_song_index);
+		for (int attempts = 0; attempts < playlist_size; ++attempts)
+		{
+			if (next_song_index < 0 || next_song_index >= static_cast<int>(audio::playlist_order.size()))
+			{
+				break;
+			}
+
+			audio::current_song_index = next_song_index;
+			if (play_song_from_playlist_order(audio::current_song_index))
+			{
+				return;
+			}
+
+			next_song_index += delta;
+			if (next_song_index >= static_cast<int>(audio::playlist_order.size()) || next_song_index < 0)
+			{
+				if (!audio::repeat_enabled)
+				{
+					break;
+				}
+
+				next_song_index = delta > 0 ? 0 : static_cast<int>(audio::playlist_order.size()) - 1;
+			}
+		}
+
+		audio::playlist_ended = true;
+		if (delta > 0)
+		{
+			audio::current_song_index = static_cast<int>(audio::playlist_order.size());
+		}
 	}
 }
 
@@ -503,7 +531,8 @@ void audio::update()
 		try_show_current_chyron();
 	}
 
-	if (!audio::paused && !audio::playing)
+	const bool playlist_context_changed = audio::playlist_context != static_cast<std::int32_t>(get_playlist_context());
+	if (!audio::paused && !audio::playing && (!audio::playlist_ended || playlist_context_changed))
 	{
 		audio::play_next_song();
 	}
@@ -515,10 +544,14 @@ void audio::update()
 
 }
 
-void audio::play_file(const std::string& file, int channel)
+bool audio::play_file(const std::string& file, int channel)
 {
-	audio::playlist_ended = false;
-	::play_file(file.c_str(), channel);
+	const bool played = ::play_file(file.c_str(), channel);
+	if (played)
+	{
+		audio::playlist_ended = false;
+	}
+	return played;
 }
 
 void audio::stop(int channel)
@@ -749,6 +782,11 @@ void audio::resolve_playlist_metadata()
 		playing_t metadata{"N/A", "N/A", audio::playlist_name};
 		{
 			const bass_api::stream_handle_t stream = bass_api::stream_create_file(track.first.c_str());
+			if (stream == 0)
+			{
+				logger::log_error(logger::va("BASS stream open failed for metadata '%s' (error %d)",
+				                             track.first.c_str(), bass_api::last_call_error()));
+			}
 			stream_guard guard{stream};
 			resolve_file_metadata(track.first.c_str(), stream, metadata.title, metadata.artist);
 		}
@@ -758,12 +796,14 @@ void audio::resolve_playlist_metadata()
 
 void audio::play_next_song()
 {
-    play_relative_song(1);
+	audio::playlist_ended = false;
+	play_relative_song(1);
 }
 
 void audio::play_previous_song()
 {
-    play_relative_song(-1);
+	audio::playlist_ended = false;
+	play_relative_song(-1);
 }
 
 void audio::skip_to_next_track()

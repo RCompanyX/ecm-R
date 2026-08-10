@@ -24,7 +24,7 @@ public:
 	/// Loads BASS, scans the playlist, and prepares playback state.
 	static void init();
 	/// Opens a specific file on the requested channel and updates the current track metadata.
-	static void play_file(const std::string& file, int channel);
+	static bool play_file(const std::string& file, int channel);
 	/// Stops playback on a single BASS channel and releases its stream.
 	static void stop(int channel);
 	/// Applies the global volume slider and syncs the live BASS channel volumes.

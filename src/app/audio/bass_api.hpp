@@ -13,7 +13,6 @@ namespace bass_api
     inline constexpr DWORD active_stopped = 0;
     inline constexpr DWORD attrib_vol = 2;
     inline constexpr DWORD sample_float = 0x100;
-    inline constexpr DWORD stream_prescan = 0x20000;
     inline constexpr DWORD config_gvol_stream = 5;
     inline constexpr DWORD bass_unicode = 0x80000000;
 
@@ -30,8 +29,10 @@ namespace bass_api
     void unload();
     /// Returns whether bass.dll was loaded successfully for this session.
     bool is_available();
-    /// Returns the latest human-readable BASS loading or call error.
+    /// Returns the latest human-readable BASS loading error.
     const std::string& last_error();
+    /// Returns the numeric error from the most recent BASS call, or -1 if unavailable.
+    int last_call_error();
     /// Returns the loaded BASS version so compatibility can be verified.
     DWORD get_version();
     /// Initializes the default BASS output device against the game window.

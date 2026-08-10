@@ -10,25 +10,50 @@
 #include <algorithm>
 #include <cctype>
 
-void play_file(const char* file, int channel)
+bool play_file(const char* file, int channel)
 {
-   audio::chan[channel] = static_cast<std::int32_t>(bass_api::stream_create_file(file));
+   if (audio::chan[channel] != 0)
+   {
+      bass_api::stream_free(static_cast<std::uint32_t>(audio::chan[channel]));
+      audio::chan[channel] = 0;
+   }
+   audio::playing = false;
+   audio::applied_volume = -1;
+
+   const auto stream = bass_api::stream_create_file(file);
+   audio::chan[channel] = static_cast<std::int32_t>(stream);
+   if (stream == 0)
+   {
+      logger::log_error(logger::va("BASS stream open failed for '%s' (error %d)",
+                                   file != nullptr ? file : "<null>", bass_api::last_call_error()));
+      return false;
+   }
+
 	audio::apply_current_context_volume();
 
-  if (audio::chan[channel] != 0 && bass_api::channel_play(audio::chan[channel], false))
+  if (!bass_api::channel_play(audio::chan[channel], false))
 	{
-		audio::playing = true;
-		std::string title;
-		std::string artist;
-		resolve_file_metadata(file, static_cast<std::uint32_t>(audio::chan[channel]), title, artist);
-
-		audio::currently_playing.title = title;
-		audio::currently_playing.artist = artist;
-		audio::currently_playing.where = audio::playlist_name;
-		audio::playlist_metadata[file] = audio::currently_playing;
-
-		audio::request_current_chyron();
+      const int error = bass_api::last_call_error();
+      bass_api::stream_free(stream);
+      audio::chan[channel] = 0;
+      audio::applied_volume = -1;
+      logger::log_error(logger::va("BASS channel play failed for '%s' (error %d)",
+                                   file != nullptr ? file : "<null>", error));
+      return false;
 	}
+
+	audio::playing = true;
+	std::string title;
+	std::string artist;
+	resolve_file_metadata(file, static_cast<std::uint32_t>(audio::chan[channel]), title, artist);
+
+	audio::currently_playing.title = title;
+	audio::currently_playing.artist = artist;
+	audio::currently_playing.where = audio::playlist_name;
+	audio::playlist_metadata[file] = audio::currently_playing;
+
+	audio::request_current_chyron();
+	return true;
 }
 
 void resolve_file_metadata(const char* file, std::uint32_t stream_handle,

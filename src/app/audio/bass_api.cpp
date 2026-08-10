@@ -15,10 +15,11 @@ namespace bass_api
         using pause_fn = BOOL(WINAPI*)();
         using set_config_fn = BOOL(WINAPI*)(DWORD, DWORD);
         using stream_create_file_fn = DWORD(WINAPI*)(BOOL, const void*, unsigned long long, unsigned long long, DWORD);
-    using channel_play_fn = BOOL(WINAPI*)(DWORD, BOOL);
-    using channel_get_tags_fn = const void*(WINAPI*)(DWORD, DWORD);
+        using channel_play_fn = BOOL(WINAPI*)(DWORD, BOOL);
+        using channel_get_tags_fn = const void*(WINAPI*)(DWORD, DWORD);
+        using error_get_code_fn = int(WINAPI*)();
 
-    HMODULE module_handle = nullptr;
+        HMODULE module_handle = nullptr;
         get_version_fn get_version_ptr = nullptr;
         init_fn init_ptr = nullptr;
         channel_is_active_fn channel_is_active_ptr = nullptr;
@@ -28,9 +29,10 @@ namespace bass_api
         pause_fn pause_ptr = nullptr;
         set_config_fn set_config_ptr = nullptr;
         stream_create_file_fn stream_create_file_ptr = nullptr;
-    channel_play_fn channel_play_ptr = nullptr;
-    channel_get_tags_fn channel_get_tags_ptr = nullptr;
-    std::string last_error_message;
+        channel_play_fn channel_play_ptr = nullptr;
+        channel_get_tags_fn channel_get_tags_ptr = nullptr;
+        error_get_code_fn error_get_code_ptr = nullptr;
+        std::string last_error_message;
 
         std::string format_system_error(DWORD error)
         {
@@ -91,15 +93,16 @@ namespace bass_api
             pause_ptr = nullptr;
             set_config_ptr = nullptr;
             stream_create_file_ptr = nullptr;
-        channel_play_ptr = nullptr;
-        channel_get_tags_ptr = nullptr;
-    }
+            channel_play_ptr = nullptr;
+            channel_get_tags_ptr = nullptr;
+            error_get_code_ptr = nullptr;
+        }
 
         template <typename T>
         bool resolve(T& target, const char* name)
         {
             target = reinterpret_cast<T>(GetProcAddress(module_handle, name));
-           if (target == nullptr)
+            if (target == nullptr)
             {
                 last_error_message = logger::va("Missing BASS export '%s'", name);
             }
@@ -114,7 +117,7 @@ namespace bass_api
             return true;
         }
 
-     const std::string module_directory = get_module_directory();
+        const std::string module_directory = get_module_directory();
         const std::string bass_path = module_directory.empty()
             ? std::string("bass.dll")
             : module_directory + "\\bass.dll";
@@ -138,7 +141,8 @@ namespace bass_api
             !resolve(set_config_ptr, "BASS_SetConfig") ||
             !resolve(stream_create_file_ptr, "BASS_StreamCreateFile") ||
             !resolve(channel_play_ptr, "BASS_ChannelPlay") ||
-            !resolve(channel_get_tags_ptr, "BASS_ChannelGetTags"))
+            !resolve(channel_get_tags_ptr, "BASS_ChannelGetTags") ||
+            !resolve(error_get_code_ptr, "BASS_ErrorGetCode"))
         {
             unload();
             return false;
@@ -165,6 +169,11 @@ namespace bass_api
     const std::string& last_error()
     {
         return last_error_message;
+    }
+
+    int last_call_error()
+    {
+        return error_get_code_ptr != nullptr ? error_get_code_ptr() : -1;
     }
 
     DWORD get_version()
@@ -229,7 +238,7 @@ namespace bass_api
 
     stream_handle_t stream_create_file(const char* file)
     {
-        if (stream_create_file_ptr == nullptr)
+        if (stream_create_file_ptr == nullptr || file == nullptr)
         {
             return 0;
         }
@@ -240,8 +249,11 @@ namespace bass_api
             return 0;
         }
 
-        std::wstring wfile(static_cast<size_t>(wide_len) - 1, 0);
-        MultiByteToWideChar(CP_UTF8, 0, file, -1, wfile.data(), wide_len);
+        std::wstring wfile(static_cast<size_t>(wide_len), L'\0');
+        if (MultiByteToWideChar(CP_UTF8, 0, file, -1, wfile.data(), wide_len) != wide_len)
+        {
+            return 0;
+        }
 
         return stream_create_file_ptr(FALSE, wfile.c_str(), 0, 0, sample_float | bass_unicode);
     }

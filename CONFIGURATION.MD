@@ -59,6 +59,8 @@ Game Folder/
       Artist - Song 02.ogg
 ```
 
+`.ogg` support targets core BASS Ogg Vorbis. Ogg Opus and Ogg FLAC require separate BASS add-ons and are not supported by the current runtime.
+
 ### `volume`
 - **Description:** Legacy/fallback volume setting.
 - **Default:** `100`
