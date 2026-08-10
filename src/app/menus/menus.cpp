@@ -1005,6 +1005,11 @@ void menus::playlist()
 		audio::resolve_playlist_metadata();
 		for (int i = 0; i < audio::playlist_files.size(); ++i)
 		{
+			if (!audio::is_track_playable(audio::playlist_files[i].first))
+			{
+				continue;
+			}
+
 			std::string display;
 			const auto metadata = audio::playlist_metadata.find(audio::playlist_files[i].first);
 			if (metadata != audio::playlist_metadata.end())

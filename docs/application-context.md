@@ -303,6 +303,8 @@ Important behavior:
 - Shuffle mode keeps a bounded playback history so `Previous` can walk real history instead of fabricating reverse order.
 - Repeat disabled allows the playlist to end after the last valid track.
 - Repeat enabled rebuilds the order and wraps back to the start.
+- Files rejected by the startup BASS probe are excluded from runtime order, context counts, metadata resolution, and the read-only Playlist menu for the session.
+- `playlist_files` remains unchanged so `[trax]` synchronization retains rejected files; enumeration clears the session cache so the next startup probe can re-evaluate them.
 
 The repository prefers the shared helper approach for navigation:
 
@@ -334,9 +336,10 @@ Consequences:
 1. Registers the NFSU2 mute-detection package list.
 2. Loads and validates `bass.dll`.
 3. Initializes the BASS device using the captured game window handle.
-4. Builds the current playlist order.
-5. Sets the audio layer into the paused state.
-6. Runs an initial `audio::update()`.
+4. Probes each discovered file once with BASS, caching files that cannot be opened.
+5. Builds the current playlist order, excluding cached-unplayable files.
+6. Sets the audio layer into the paused state.
+7. Runs an initial `audio::update()`.
 
 This means playback does not immediately start just because BASS is available. Normal playback depends on later resume conditions from the game integration.
 

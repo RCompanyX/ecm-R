@@ -12,10 +12,12 @@
 #include <algorithm>
 #include <numeric>
 #include <random>
+#include <unordered_set>
 
 namespace
 {
     constexpr int max_playback_history_entries = 50;
+    std::unordered_set<std::string> unplayable_files;
 
     struct stream_guard
     {
@@ -95,6 +97,30 @@ namespace
 			global::state == GameFlowState::LoadingRegion ||
 			global::state == GameFlowState::LoadingTrack;
 	}
+
+    void probe_unplayable_files()
+    {
+        for (const auto& track : audio::playlist_files)
+        {
+            if (unplayable_files.find(track.first) != unplayable_files.end())
+            {
+                continue;
+            }
+
+            const bass_api::stream_handle_t stream = bass_api::stream_create_file(track.first.c_str());
+            if (stream != 0)
+            {
+                bass_api::stream_free(stream);
+                continue;
+            }
+
+            if (unplayable_files.emplace(track.first).second)
+            {
+                logger::log_error(logger::va("BASS probe failed for '%s' (error %d); omitting from runtime playlist",
+                                             track.first.c_str(), bass_api::last_call_error()));
+            }
+        }
+    }
 
 	// Resolves the playlist entry index that matches the current song order position.
 	int current_playlist_entry_index()
@@ -491,6 +517,7 @@ void audio::init()
 		return;
 	}
 
+	probe_unplayable_files();
   audio::create_playlist_order();
 	audio::pause();
 	audio::update();
@@ -596,13 +623,18 @@ int audio::current_playlist_track_count()
 
 	for (const auto& track : audio::playlist_files)
 	{
-		if (is_track_valid_for_context(track.second, playlist_context))
+		if (audio::is_track_playable(track.first) && is_track_valid_for_context(track.second, playlist_context))
 		{
 			++track_count;
 		}
 	}
 
 	return track_count;
+}
+
+bool audio::is_track_playable(const std::string& file)
+{
+	return unplayable_files.find(file) == unplayable_files.end();
 }
 
 std::int32_t audio::current_context_volume()
@@ -659,7 +691,8 @@ void audio::create_playlist_order()
 
 	for (int i = 0; i < audio::playlist_files.size(); ++i)
 	{
-		if (is_track_valid_for_context(audio::playlist_files[i].second, playlist_context))
+		if (audio::is_track_playable(audio::playlist_files[i].first) &&
+			is_track_valid_for_context(audio::playlist_files[i].second, playlist_context))
 		{
 			audio::playlist_order.emplace_back(i);
 		}
@@ -757,6 +790,7 @@ bool audio::can_resume_current_song()
 
 void audio::enumerate_playlist()
 {
+	unplayable_files.clear();
 	audio::playlist_metadata.clear();
 	std::vector<std::string> files = fs::get_all_files(audio::playlist_dir, audio::supported_files);
 	for (std::string& file : files)
@@ -774,6 +808,11 @@ void audio::resolve_playlist_metadata()
 
 	for (const auto& track : audio::playlist_files)
 	{
+		if (!audio::is_track_playable(track.first))
+		{
+			continue;
+		}
+
 		if (audio::playlist_metadata.find(track.first) != audio::playlist_metadata.end())
 		{
 			continue;

@@ -122,6 +122,7 @@ ECM-R currently scans the playlist folder for these file types:
 - Rejects duplicate hotkey assignments and suspends ECM-R hotkey execution while the overlay is capturing a new binding
 - ECM-R hotkeys stay locked only during the first startup music banner and become available after that banner has fully disappeared
 - Uses real playback history for previous-track navigation while shuffle is enabled
+- Omits files BASS cannot open from runtime playback and the read-only Playlist menu for the session while retaining them on disk and in `[trax]` for next-launch re-evaluation
 - Parses filenames robustly, splitting on the first `-` character and trimming whitespace, for clean `Artist - Title` display in the chyron, overlay menu bar, and playlist menu
 - Reads embedded metadata tags (ID3v1, ID3v2, Vorbis Comments, RIFF INFO) when available; `.ogg` metadata refers to core BASS Ogg Vorbis support, while Ogg Opus/FLAC add-ons are outside the current runtime; when tags are missing or unparseable, ECM-R falls back to the filename "Artist - Title" convention on a per-field basis (originally proposed and prototyped by [@DeathWrench](https://github.com/DeathWrench))
 - Includes an About menu with repository and issue tracker links, plus a red startup notice that says whether the newer GitHub build is a stable release or a testing pre-release

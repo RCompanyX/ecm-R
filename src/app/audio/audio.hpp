@@ -43,6 +43,8 @@ public:
    static const char* current_playlist_context();
 	/// Reports how many tracks are available in the active playlist context.
 	static int current_playlist_track_count();
+	/// Reports whether BASS accepted the file during this session's startup probe.
+	static bool is_track_playable(const std::string& file);
 	/// Resolves the effective volume for the current frontend or in-game context.
    static std::int32_t current_context_volume();
 	/// Pushes the context-aware volume setting to the live BASS configuration.

@@ -14,6 +14,7 @@ This changelog tracks the tagged releases recorded in this repository.
 - Playlist entries now use embedded artist/title metadata when available, while retaining the existing filename-derived fallback.
 - Clarified that `.ogg` metadata/playback support targets core BASS Ogg Vorbis and added numeric BASS diagnostics for stream-open and channel-play failures.
 - Failed playback candidates no longer enter shuffle history or cause unbounded autoplay retries; attempts are bounded to one playlist pass while successful repeat behavior is preserved.
+- Files BASS cannot open are omitted from runtime playback and the read-only Playlist menu while remaining on disk and in `[trax]` for re-evaluation on the next launch.
 - Hardened ID3v2 parser: prefers `BASS_TAG_ID3V2_BINARY` (type 20) with an explicit memory bound, then falls back to the legacy `BASS_TAG_ID3V2` block on older BASS 2.4 builds so MP2/AIFF metadata remains readable; malformed tags still fall back to ID3v1/filename.
 - Hardened ID3v1 parser to use a BASS-compatible `TAG_ID3` struct layout instead of raw byte offsets, with a `static_assert` verifying the 128-byte packing.
 - RIFF INFO metadata parsing now handles the BASS-documented `KEY=VALUE\0` format, while malformed entries fall back safely.
