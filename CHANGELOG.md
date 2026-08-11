@@ -12,6 +12,7 @@ This changelog tracks the tagged releases recorded in this repository.
 
 ### Changed
 - Playlist entries now use embedded artist/title metadata when available, while retaining the existing filename-derived fallback.
+- Marked `.mp1` as a legacy MPEG-1 Layer I compatibility format; new QA coverage prioritizes MP2, MP3, WAV, OGG Vorbis, and AIFF.
 - Clarified that `.ogg` metadata/playback support targets core BASS Ogg Vorbis and added numeric BASS diagnostics for stream-open and channel-play failures.
 - Failed playback candidates no longer enter shuffle history or cause unbounded autoplay retries; attempts are bounded to one playlist pass while successful repeat behavior is preserved.
 - Files BASS cannot open are omitted from runtime playback and the read-only Playlist menu while remaining on disk and in `[trax]` for re-evaluation on the next launch.

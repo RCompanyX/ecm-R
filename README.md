@@ -95,11 +95,13 @@ Before installing, ensure you have:
 ECM-R currently scans the playlist folder for these file types:
 
 - `.wav`
-- `.mp1`
+- `.mp1` (legacy MPEG-1 Layer I; retained for compatibility)
 - `.mp2`
 - `.mp3`
 - `.ogg` (core BASS Ogg Vorbis; Ogg Opus and Ogg FLAC require separate add-ons and are not supported by the current runtime)
 - `.aif`
+
+MP1 is a legacy compatibility format and is not a primary QA target. Prefer MP2, MP3, WAV, OGG Vorbis, or AIFF for new music and testing.
 
 ## Implemented Functionality
 

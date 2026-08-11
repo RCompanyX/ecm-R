@@ -379,6 +379,7 @@ void read_metadata(std::uint32_t stream_handle, const std::string& extension,
 {
     const DWORD handle = static_cast<DWORD>(stream_handle);
 
+    // MP1 shares the MPEG/ID3 path for legacy compatibility; it is not a primary QA target.
     if (extension == "mp3" || extension == "mp1" || extension == "mp2" || extension == "aif")
     {
         parse_id3v2(handle, title, artist);

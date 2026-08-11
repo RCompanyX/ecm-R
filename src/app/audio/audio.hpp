@@ -12,7 +12,7 @@ struct playing_t
 };
 
 /// Reads embedded title/artist tags from a BASS stream.
-/// extension: lowercase file extension (e.g. "mp3", "ogg", "wav").
+/// extension: lowercase file extension (e.g. "mp3", "ogg", "wav"; "mp1" is legacy).
 /// On success, title and/or artist are populated. On failure, both are untouched.
 void read_metadata(std::uint32_t stream_handle, const std::string& extension,
                    std::string& title, std::string& artist);

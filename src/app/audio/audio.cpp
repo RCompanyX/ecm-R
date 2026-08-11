@@ -953,5 +953,6 @@ std::vector<int> audio::playback_history;
 int audio::current_song_index = 0;
 int audio::playback_history_index = -1;
 std::int32_t audio::playlist_context = -1;
+// MP1 is retained as a legacy MPEG-1 Layer I compatibility extension; new QA targets newer formats.
 std::initializer_list<std::string> audio::supported_files { "wav", "mp1", "mp2", "mp3", "ogg", "aif"};
 std::vector<const char*> audio::mute_detection;
