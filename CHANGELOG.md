@@ -8,7 +8,7 @@ This changelog tracks the tagged releases recorded in this repository.
 
 ### Added
 - Added GitHub Actions CI workflow (`build.yml`) that compiles `Release | Win-x86` and uploads the `.asi` artifact on every push and pull request.
-- Added embedded metadata tag reading (ID3v1, ID3v2, Vorbis Comments, RIFF INFO) for the overlay and in-game chyron, with per-field fallback to the existing filename-derived `Artist - Title` convention when tags are absent or unparseable. (Originally proposed and prototyped by [@DeathWrench](https://github.com/DeathWrench).)
+- Added embedded metadata tag reading (ID3v1, ID3v2, Vorbis Comments, RIFF INFO) for the overlay and in-game chyron, with per-field fallback to the existing filename-derived `Artist - Title` convention when tags are absent or unparseable. (Originally proposed and prototyped by @DeathWrench)
 
 ### Changed
 - Playlist entries now use embedded artist/title metadata when available, while retaining the existing filename-derived fallback.
