@@ -125,8 +125,10 @@ MP1 is a legacy compatibility format and is not a primary QA target. Prefer MP2,
 - ECM-R hotkeys stay locked only during the first startup music banner and become available after that banner has fully disappeared
 - Uses real playback history for previous-track navigation while shuffle is enabled
 - Omits files BASS cannot open from runtime playback and the read-only Playlist menu for the session while retaining them on disk and in `[trax]` for next-launch re-evaluation
+- Bounds failed playback attempts to one playlist pass so unavailable files do not enter shuffle history or cause endless autoplay retries
 - Parses filenames robustly, splitting on the first `-` character and trimming whitespace, for clean `Artist - Title` display in the chyron, overlay menu bar, and playlist menu
 - Reads embedded metadata tags (ID3v1, ID3v2, Vorbis Comments, RIFF INFO) when available; `.ogg` metadata refers to core BASS Ogg Vorbis support, while Ogg Opus/FLAC add-ons are outside the current runtime; when tags are missing or unparseable, ECM-R falls back to the filename "Artist - Title" convention on a per-field basis (originally proposed and prototyped by [@DeathWrench](https://github.com/DeathWrench))
+- Truncates long embedded artist and title values for the in-game chyron without splitting UTF-8 characters
 - Includes an About menu with repository and issue tracker links, plus a red startup notice that says whether the newer GitHub build is a stable release or a testing pre-release
 
 ### Configuration and Persistence
@@ -163,7 +165,7 @@ The current roadmap includes:
 ## Notes
 
 - `bass.dll` must be the official BASS runtime placed next to the ECM-R runtime files. Download the Windows 32-bit ZIP package from the `BASS` page on https://www.un4seen.com/ and copy the `bass.dll` that is stored in the root of the ZIP. The current runtime integration has been tested with BASS `v2.4.18.11`. Avoid unofficial, modified, or repackaged builds.
-- If `bass.dll` is missing, incorrect version, or cannot be loaded, audio playback will fail. ECM-R shows Windows error text and the exact path it tried in the startup popup.
+- If `bass.dll` is missing, incorrect version, or cannot be loaded, audio playback will fail. ECM-R shows Windows error text, numeric BASS diagnostics, and the exact path it tried in the startup popup.
 - BASS is a third-party library subject to the official BASS license terms. ECM-R does not bundle or redistribute `bass.dll`; users must obtain the official runtime themselves.
 - If your usage becomes commercial, review the official BASS licensing terms and obtain any required license before distribution. ECM-R is maintained as a non-commercial fork project.
 - ECM-R ignores its hotkeys during the first startup chyron so the initial banner can complete cleanly before manual controls are used.

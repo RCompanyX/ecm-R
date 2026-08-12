@@ -6,6 +6,8 @@ This changelog tracks the tagged releases recorded in this repository.
 
 ## [Unreleased]
 
+## [v0.5.14-alpha] - 2026-08-12
+
 ### Added
 - Added GitHub Actions CI workflow (`build.yml`) that compiles `Release | Win-x86` and uploads the `.asi` artifact on every push and pull request.
 - Added embedded metadata tag reading (ID3v1, ID3v2, Vorbis Comments, RIFF INFO) for the overlay and in-game chyron, with per-field fallback to the existing filename-derived `Artist - Title` convention when tags are absent or unparseable. (Originally proposed and prototyped by [@DeathWrench](https://github.com/DeathWrench).)
@@ -253,3 +255,4 @@ This changelog tracks the tagged releases recorded in this repository.
 [v0.5.10-alpha]: https://github.com/RCompanyX/ecm-R/releases/tag/v0.5.10-alpha
 [v0.5.11-alpha]: https://github.com/RCompanyX/ecm-R/releases/tag/v0.5.11-alpha
 [v0.5.13-alpha]: https://github.com/RCompanyX/ecm-R/releases/tag/v0.5.13-alpha
+[v0.5.14-alpha]: https://github.com/RCompanyX/ecm-R/releases/tag/v0.5.14-alpha
