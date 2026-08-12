@@ -677,7 +677,7 @@ void menus::main_menu_bar()
 		const std::string display_name = (audio::currently_playing.artist != "N/A")
 			? audio::currently_playing.artist + " - " + audio::currently_playing.title
 			: audio::currently_playing.title;
-		ImGui::Text(logger::va("Listening: %s on %s", display_name.c_str(), audio::playlist_name.c_str()).c_str());
+		ImGui::Text("Listening: %s on %s", display_name.c_str(), audio::playlist_name.c_str());
 		ImGui::SameLine();
 		ImGui::Text("[%s]", audio::manual_paused ? "Paused" : "Playing");
 
@@ -1002,28 +1002,28 @@ void menus::playlist()
 {
 	if (ImGui::BeginMenu("Playlist"))
 	{
+		audio::resolve_playlist_metadata();
 		for (int i = 0; i < audio::playlist_files.size(); ++i)
 		{
-			std::string song = audio::playlist_files[i].first;
-			song.erase(0, audio::playlist_dir.size() + 1);
-			const size_t dot = song.rfind('.');
-			if (dot != std::string::npos)
-				song.erase(dot);
-
-			const size_t dash_pos = song.find('-');
-			std::string display;
-			if (dash_pos != std::string::npos)
+			if (!audio::is_track_playable(audio::playlist_files[i].first))
 			{
-				std::string art = song.substr(0, dash_pos);
-				std::string ttl = song.substr(dash_pos + 1);
-				logger::trim(art);
-				logger::trim(ttl);
-				display = art + " - " + ttl;
+				continue;
+			}
+
+			std::string display;
+			const auto metadata = audio::playlist_metadata.find(audio::playlist_files[i].first);
+			if (metadata != audio::playlist_metadata.end())
+			{
+				display = metadata->second.artist != "N/A"
+					? metadata->second.artist + " - " + metadata->second.title
+					: metadata->second.title;
 			}
 			else
 			{
-				display = song;
-				logger::trim(display);
+				std::string title;
+				std::string artist;
+				resolve_file_metadata(audio::playlist_files[i].first.c_str(), 0, title, artist);
+				display = artist != "N/A" ? artist + " - " + title : title;
 			}
 
 			ImGui::Text("%s", display.c_str());

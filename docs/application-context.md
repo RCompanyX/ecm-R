@@ -265,10 +265,10 @@ Directory enumeration uses wide-string `std::filesystem` APIs and converts paths
 Supported file extensions currently documented in the repository are:
 
 - `.wav`
-- `.mp1`
+- `.mp1` (legacy MPEG-1 Layer I; retained for compatibility)
 - `.mp2`
 - `.mp3`
-- `.ogg`
+- `.ogg` (core BASS Ogg Vorbis; Ogg Opus and Ogg FLAC require separate add-ons and are not supported by the current runtime)
 - `.aif`
 
 ### Track context filtering
@@ -303,6 +303,8 @@ Important behavior:
 - Shuffle mode keeps a bounded playback history so `Previous` can walk real history instead of fabricating reverse order.
 - Repeat disabled allows the playlist to end after the last valid track.
 - Repeat enabled rebuilds the order and wraps back to the start.
+- Files rejected by the startup BASS probe are excluded from runtime order, context counts, metadata resolution, and the read-only Playlist menu for the session.
+- `playlist_files` remains unchanged so `[trax]` synchronization retains rejected files; enumeration clears the session cache so the next startup probe can re-evaluate them.
 
 The repository prefers the shared helper approach for navigation:
 
@@ -334,9 +336,10 @@ Consequences:
 1. Registers the NFSU2 mute-detection package list.
 2. Loads and validates `bass.dll`.
 3. Initializes the BASS device using the captured game window handle.
-4. Builds the current playlist order.
-5. Sets the audio layer into the paused state.
-6. Runs an initial `audio::update()`.
+4. Probes each discovered file once with BASS, caching files that cannot be opened.
+5. Builds the current playlist order, excluding cached-unplayable files.
+6. Sets the audio layer into the paused state.
+7. Runs an initial `audio::update()`.
 
 This means playback does not immediately start just because BASS is available. Normal playback depends on later resume conditions from the game integration.
 
@@ -358,15 +361,19 @@ ECM-R keeps that package behind the `[experimental]` `ingame_movie_muting` flag.
 
 ### Metadata and chyron text
 
-Playback metadata is derived primarily from filenames.
+Playback metadata is resolved in this order:
 
-If a filename matches `Artist - Title.ext`, ECM-R uses:
+1. **Embedded tags** (per-file-format):
+   - MP3 / MP2 / AIF: ID3v2 (`TIT2` for title, `TPE1` for artist) first; ID3v1 second (per-field fallback, never overwrites ID3v2).
+   - MP1: the same ID3 path is retained for legacy compatibility and is not a primary QA target.
+   - OGG: Vorbis Comments (`TITLE`, `ARTIST`) for core BASS Ogg Vorbis streams; Ogg Opus/FLAC add-ons are not loaded by the current runtime.
+   - WAV: RIFF INFO (`INAM`, `IART`).
+2. **Filename fallback** (per-field — only fills fields still `"N/A"` after tag parsing):
+   - If the filename matches `Artist - Title.ext`, ECM-R uses the left side as artist and the right side as title.
+   - If the filename does not match that pattern, the whole filename (minus extension) becomes the title and artist stays `"N/A"`.
+3. `playlist_name` is used as the album/source label (`where` field), independent of any embedded album tags.
 
-- the left side as artist,
-- the right side as title,
-- the playlist name as the album or source label.
-
-If the filename does not match that pattern cleanly, ECM-R falls back to simpler placeholders.
+Tags that are absent or malformed are silently skipped without crashing. Metadata resolution does not change playlist context, GameFlowState, or the playback state machine.
 
 ## Hook Map and Low-Level Integration
 

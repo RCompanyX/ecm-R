@@ -13,9 +13,15 @@ namespace bass_api
     inline constexpr DWORD active_stopped = 0;
     inline constexpr DWORD attrib_vol = 2;
     inline constexpr DWORD sample_float = 0x100;
-    inline constexpr DWORD stream_prescan = 0x20000;
     inline constexpr DWORD config_gvol_stream = 5;
     inline constexpr DWORD bass_unicode = 0x80000000;
+
+    // BASS_ChannelGetTags tag types
+    inline constexpr DWORD bass_tag_id3          = 0;     // ID3v1
+    inline constexpr DWORD bass_tag_id3v2        = 1;     // ID3v2 (raw, no length)
+    inline constexpr DWORD bass_tag_ogg          = 2;     // Vorbis Comments
+    inline constexpr DWORD bass_tag_id3v2_binary = 20;    // ID3v2 as TAG_BINARY { data; length } — BASS 2.4.18.3+
+    inline constexpr DWORD bass_tag_riff_info    = 0x100; // RIFF INFO
 
     /// Loads bass.dll from the plugin directory and resolves the required exports.
     bool load();
@@ -23,8 +29,10 @@ namespace bass_api
     void unload();
     /// Returns whether bass.dll was loaded successfully for this session.
     bool is_available();
-    /// Returns the latest human-readable BASS loading or call error.
+    /// Returns the latest human-readable BASS loading error.
     const std::string& last_error();
+    /// Returns the numeric error from the most recent BASS call, or -1 if unavailable.
+    int last_call_error();
     /// Returns the loaded BASS version so compatibility can be verified.
     DWORD get_version();
     /// Initializes the default BASS output device against the game window.
@@ -49,4 +57,6 @@ namespace bass_api
     stream_handle_t stream_create_file(const char* file);
     /// Starts playback on a stream handle, optionally from the beginning.
     bool channel_play(DWORD channel, bool restart);
+    /// Returns raw tag data for the given tag type, or nullptr if unavailable.
+    const void* channel_get_tags(stream_handle_t handle, DWORD tag_type);
 }

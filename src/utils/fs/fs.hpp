@@ -42,6 +42,16 @@ public:
 		return ansi;
 	}
 
+	static std::string ansi_to_utf8(const std::string& ansi_str)
+	{
+		if (ansi_str.empty()) return {};
+		const int wide_len = MultiByteToWideChar(CP_ACP, 0, ansi_str.data(), static_cast<int>(ansi_str.size()), nullptr, 0);
+		if (wide_len <= 0) return {};
+		std::wstring wide(static_cast<size_t>(wide_len), 0);
+		MultiByteToWideChar(CP_ACP, 0, ansi_str.data(), static_cast<int>(ansi_str.size()), wide.data(), wide_len);
+		return wstring_to_utf8(wide);
+	}
+
 	static bool exists(const std::string& path)
 	{
 		return std::filesystem::exists(utf8_to_wstring(path));

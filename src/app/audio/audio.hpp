@@ -11,6 +11,12 @@ struct playing_t
    std::string title, artist, where;
 };
 
+/// Reads embedded title/artist tags from a BASS stream.
+/// extension: lowercase file extension (e.g. "mp3", "ogg", "wav"; "mp1" is legacy).
+/// On success, title and/or artist are populated. On failure, both are untouched.
+void read_metadata(std::uint32_t stream_handle, const std::string& extension,
+                   std::string& title, std::string& artist);
+
 /// Owns playlist discovery, context filtering, and playback state for ECM-R.
 class audio
 {
@@ -18,13 +24,15 @@ public:
 	/// Loads BASS, scans the playlist, and prepares playback state.
 	static void init();
 	/// Opens a specific file on the requested channel and updates the current track metadata.
-	static void play_file(const std::string& file, int channel);
+	static bool play_file(const std::string& file, int channel);
 	/// Stops playback on a single BASS channel and releases its stream.
 	static void stop(int channel);
 	/// Applies the global volume slider and syncs the live BASS channel volumes.
 	static void set_volume(std::int32_t vol_in);
 	/// Rebuilds the track list from the configured playlist directory and trax routing.
 	static void enumerate_playlist();
+	/// Resolves and caches playlist display metadata after BASS is available.
+	static void resolve_playlist_metadata();
 	/// Advances playback according to the current game state, mute triggers, and track completion.
 	static void update();
 	/// Recomputes the playable order for the active frontend or in-game context.
@@ -35,6 +43,8 @@ public:
    static const char* current_playlist_context();
 	/// Reports how many tracks are available in the active playlist context.
 	static int current_playlist_track_count();
+	/// Reports whether BASS accepted the file during this session's startup probe.
+	static bool is_track_playable(const std::string& file);
 	/// Resolves the effective volume for the current frontend or in-game context.
    static std::int32_t current_context_volume();
 	/// Pushes the context-aware volume setting to the live BASS configuration.
@@ -73,6 +83,7 @@ public:
 	static std::string playlist_name;
 	static std::string playlist_dir;
 	static std::vector<std::pair<std::string, std::string>> playlist_files;
+	static std::unordered_map<std::string, playing_t> playlist_metadata;
 	static std::vector<int> playlist_order;
   static std::vector<int> playback_history;
 	static int current_song_index;

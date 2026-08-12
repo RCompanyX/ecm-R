@@ -12,10 +12,25 @@
 #include <algorithm>
 #include <numeric>
 #include <random>
+#include <unordered_set>
 
 namespace
 {
     constexpr int max_playback_history_entries = 50;
+    std::unordered_set<std::string> unplayable_files;
+
+    struct stream_guard
+    {
+        bass_api::stream_handle_t handle;
+
+        ~stream_guard()
+        {
+            if (handle != 0)
+            {
+                bass_api::stream_free(handle);
+            }
+        }
+    };
 
 	// Keeps persisted and context-specific volumes inside ECM-R's 0-100 range.
 	std::int32_t clamp_volume(const std::int32_t volume)
@@ -83,6 +98,30 @@ namespace
 			global::state == GameFlowState::LoadingTrack;
 	}
 
+    void probe_unplayable_files()
+    {
+        for (const auto& track : audio::playlist_files)
+        {
+            if (unplayable_files.find(track.first) != unplayable_files.end())
+            {
+                continue;
+            }
+
+            const bass_api::stream_handle_t stream = bass_api::stream_create_file(track.first.c_str());
+            if (stream != 0)
+            {
+                bass_api::stream_free(stream);
+                continue;
+            }
+
+            if (unplayable_files.emplace(track.first).second)
+            {
+                logger::log_error(logger::va("BASS probe failed for '%s' (error %d); omitting from runtime playlist",
+                                             track.first.c_str(), bass_api::last_call_error()));
+            }
+        }
+    }
+
 	// Resolves the playlist entry index that matches the current song order position.
 	int current_playlist_entry_index()
 	{
@@ -102,7 +141,27 @@ namespace
 			return false;
 		}
 
-		if (!hook::SummonChyron(fs::utf8_to_ansi(audio::currently_playing.title).c_str(), fs::utf8_to_ansi(audio::currently_playing.artist).c_str(), audio::currently_playing.where.c_str()))
+		// ponytail: clamp title/artist to 64 code points before passing to the game chyron.
+		// NFSU2's chyron has limited visual space; long embedded tags from user files
+		// can overflow or cause rendering glitches. Truncation goes through wstring
+		// to avoid splitting multi-byte UTF-8 sequences mid-character.
+		// Upgrade path: configurable max.
+		constexpr std::size_t max_chyron = 64;
+		auto truncate_for_chyron = [max_chyron](const std::string& src) -> std::string
+		{
+			std::string s = src;
+			logger::trim(s);
+			if (s.size() <= max_chyron)
+				return s;
+			std::wstring w = fs::utf8_to_wstring(s);
+			if (w.size() > max_chyron)
+				w.resize(max_chyron);
+			return fs::wstring_to_utf8(w);
+		};
+		std::string safe_title  = truncate_for_chyron(audio::currently_playing.title);
+		std::string safe_artist = truncate_for_chyron(audio::currently_playing.artist);
+
+		if (!hook::SummonChyron(fs::utf8_to_ansi(safe_title).c_str(), fs::utf8_to_ansi(safe_artist).c_str(), audio::currently_playing.where.c_str()))
 		{
 			return false;
 		}
@@ -237,18 +296,14 @@ namespace
 	}
 
 	// Plays a concrete playlist entry and optionally records it in shuffle history.
-	void play_song_from_playlist_entry(const int playlist_entry_index, const bool record_history)
+	bool play_song_from_playlist_entry(const int playlist_entry_index, const bool record_history)
 	{
 		if (playlist_entry_index < 0 || playlist_entry_index >= static_cast<int>(audio::playlist_files.size()))
 		{
-			return;
+			return false;
 		}
 
-     if (record_history && audio::shuffle_enabled)
-		{
-			record_playback_history(playlist_entry_index);
-		}
-
+		bool played = false;
 		switch (global::state)
 		{
 		case GameFlowState::LoadingFrontend:
@@ -257,18 +312,25 @@ namespace
 		case GameFlowState::LoadingRegion:
 		case GameFlowState::Racing:
 		default:
-			audio::play_file(audio::playlist_files[playlist_entry_index].first, 0);
-          sync_pause_state();
+			played = audio::play_file(audio::playlist_files[playlist_entry_index].first, 0);
+			sync_pause_state();
 			break;
 		}
+
+		if (played && record_history && audio::shuffle_enabled)
+		{
+			record_playback_history(playlist_entry_index);
+		}
+
+		return played;
 	}
 
 	// Plays a song by its position inside the active playlist order.
-    void play_song_from_playlist_order(const int song_index, const bool record_history = true)
+    bool play_song_from_playlist_order(const int song_index, const bool record_history = true)
 	{
 		if (song_index < 0 || song_index >= static_cast<int>(audio::playlist_order.size()))
 		{
-			return;
+			return false;
 		}
 
 		int playlist_entry_index = audio::playlist_order[song_index];
@@ -278,7 +340,7 @@ namespace
 			playlist_entry_index = static_cast<int>(audio::playlist_files.size()) - 1;
 		}
 
-		play_song_from_playlist_entry(playlist_entry_index, record_history);
+		return play_song_from_playlist_entry(playlist_entry_index, record_history);
 	}
 
 	// Rebuilds playlist ordering when the active frontend or in-game context changes.
@@ -299,35 +361,6 @@ namespace
 		return !audio::playlist_order.empty();
 	}
 
-	// Moves the current song pointer while honoring repeat and end-of-playlist state.
-	void move_current_song_index(const int delta)
-	{
-		const int last_song_index = static_cast<int>(audio::playlist_order.size()) - 1;
-		const int next_song_index = audio::current_song_index + delta;
-
-		if (next_song_index > last_song_index)
-		{
-			if (!audio::repeat_enabled)
-			{
-				audio::playlist_ended = true;
-				audio::current_song_index = static_cast<int>(audio::playlist_order.size());
-				return;
-			}
-
-			audio::create_playlist_order();
-			audio::current_song_index = 0;
-			return;
-		}
-
-		if (next_song_index < 0)
-		{
-			audio::current_song_index = audio::repeat_enabled ? last_song_index : 0;
-			return;
-		}
-
-		audio::current_song_index = next_song_index;
-	}
-
 	// Restores a previously visited shuffle entry if the requested history position exists.
 	bool try_play_song_from_history(const int history_index)
 	{
@@ -338,8 +371,14 @@ namespace
 
 		const int playlist_entry_index = audio::playback_history[history_index];
 		sync_current_song_index_from_playlist_entry(playlist_entry_index);
-		play_song_from_playlist_entry(playlist_entry_index, false);
-		return true;
+		if (play_song_from_playlist_entry(playlist_entry_index, false))
+		{
+			return true;
+		}
+
+		audio::playback_history.erase(audio::playback_history.begin() + history_index);
+		audio::playback_history_index = (std::min)(history_index, static_cast<int>(audio::playback_history.size()) - 1);
+		return false;
 	}
 
 	// Moves relative to the current song, using shuffle history when available.
@@ -384,14 +423,62 @@ namespace
 			}
 		}
 
-		move_current_song_index(delta);
+		const int playlist_size = static_cast<int>(audio::playlist_order.size());
+		int next_song_index = audio::current_song_index + delta;
 
-		if (audio::current_song_index < 0 || audio::current_song_index >= static_cast<int>(audio::playlist_order.size()))
+		if (next_song_index >= playlist_size)
 		{
-			return;
+			if (delta > 0 && audio::repeat_enabled)
+			{
+				audio::create_playlist_order();
+				next_song_index = 0;
+			}
+			else if (delta > 0)
+			{
+				audio::playlist_ended = true;
+				audio::current_song_index = playlist_size;
+				return;
+			}
+			else
+			{
+				next_song_index = playlist_size - 1;
+			}
+		}
+		else if (next_song_index < 0)
+		{
+			next_song_index = audio::repeat_enabled ? playlist_size - 1 : 0;
 		}
 
-		play_song_from_playlist_order(audio::current_song_index);
+		for (int attempts = 0; attempts < playlist_size; ++attempts)
+		{
+			if (next_song_index < 0 || next_song_index >= static_cast<int>(audio::playlist_order.size()))
+			{
+				break;
+			}
+
+			audio::current_song_index = next_song_index;
+			if (play_song_from_playlist_order(audio::current_song_index))
+			{
+				return;
+			}
+
+			next_song_index += delta;
+			if (next_song_index >= static_cast<int>(audio::playlist_order.size()) || next_song_index < 0)
+			{
+				if (!audio::repeat_enabled)
+				{
+					break;
+				}
+
+				next_song_index = delta > 0 ? 0 : static_cast<int>(audio::playlist_order.size()) - 1;
+			}
+		}
+
+		audio::playlist_ended = true;
+		if (delta > 0)
+		{
+			audio::current_song_index = static_cast<int>(audio::playlist_order.size());
+		}
 	}
 }
 
@@ -430,6 +517,7 @@ void audio::init()
 		return;
 	}
 
+	probe_unplayable_files();
   audio::create_playlist_order();
 	audio::pause();
 	audio::update();
@@ -470,7 +558,8 @@ void audio::update()
 		try_show_current_chyron();
 	}
 
-	if (!audio::paused && !audio::playing)
+	const bool playlist_context_changed = audio::playlist_context != static_cast<std::int32_t>(get_playlist_context());
+	if (!audio::paused && !audio::playing && (!audio::playlist_ended || playlist_context_changed))
 	{
 		audio::play_next_song();
 	}
@@ -482,10 +571,14 @@ void audio::update()
 
 }
 
-void audio::play_file(const std::string& file, int channel)
+bool audio::play_file(const std::string& file, int channel)
 {
-	audio::playlist_ended = false;
-	::play_file(file.c_str(), channel);
+	const bool played = ::play_file(file.c_str(), channel);
+	if (played)
+	{
+		audio::playlist_ended = false;
+	}
+	return played;
 }
 
 void audio::stop(int channel)
@@ -530,13 +623,18 @@ int audio::current_playlist_track_count()
 
 	for (const auto& track : audio::playlist_files)
 	{
-		if (is_track_valid_for_context(track.second, playlist_context))
+		if (audio::is_track_playable(track.first) && is_track_valid_for_context(track.second, playlist_context))
 		{
 			++track_count;
 		}
 	}
 
 	return track_count;
+}
+
+bool audio::is_track_playable(const std::string& file)
+{
+	return unplayable_files.find(file) == unplayable_files.end();
 }
 
 std::int32_t audio::current_context_volume()
@@ -593,7 +691,8 @@ void audio::create_playlist_order()
 
 	for (int i = 0; i < audio::playlist_files.size(); ++i)
 	{
-		if (is_track_valid_for_context(audio::playlist_files[i].second, playlist_context))
+		if (audio::is_track_playable(audio::playlist_files[i].first) &&
+			is_track_valid_for_context(audio::playlist_files[i].second, playlist_context))
 		{
 			audio::playlist_order.emplace_back(i);
 		}
@@ -691,6 +790,8 @@ bool audio::can_resume_current_song()
 
 void audio::enumerate_playlist()
 {
+	unplayable_files.clear();
+	audio::playlist_metadata.clear();
 	std::vector<std::string> files = fs::get_all_files(audio::playlist_dir, audio::supported_files);
 	for (std::string& file : files)
 	{
@@ -698,14 +799,50 @@ void audio::enumerate_playlist()
 	}
 }
 
+void audio::resolve_playlist_metadata()
+{
+	if (!bass_api::is_available())
+	{
+		return;
+	}
+
+	for (const auto& track : audio::playlist_files)
+	{
+		if (!audio::is_track_playable(track.first))
+		{
+			continue;
+		}
+
+		if (audio::playlist_metadata.find(track.first) != audio::playlist_metadata.end())
+		{
+			continue;
+		}
+
+		playing_t metadata{"N/A", "N/A", audio::playlist_name};
+		{
+			const bass_api::stream_handle_t stream = bass_api::stream_create_file(track.first.c_str());
+			if (stream == 0)
+			{
+				logger::log_error(logger::va("BASS stream open failed for metadata '%s' (error %d)",
+				                             track.first.c_str(), bass_api::last_call_error()));
+			}
+			stream_guard guard{stream};
+			resolve_file_metadata(track.first.c_str(), stream, metadata.title, metadata.artist);
+		}
+		audio::playlist_metadata.emplace(track.first, std::move(metadata));
+	}
+}
+
 void audio::play_next_song()
 {
-    play_relative_song(1);
+	audio::playlist_ended = false;
+	play_relative_song(1);
 }
 
 void audio::play_previous_song()
 {
-    play_relative_song(-1);
+	audio::playlist_ended = false;
+	play_relative_song(-1);
 }
 
 void audio::skip_to_next_track()
@@ -810,10 +947,12 @@ playing_t audio::currently_playing = {"N/A", "N/A", "N/A"};
 std::string audio::playlist_name = "Music";
 std::string audio::playlist_dir = "Music";
 std::vector<std::pair<std::string, std::string>> audio::playlist_files;
+std::unordered_map<std::string, playing_t> audio::playlist_metadata;
 std::vector<int> audio::playlist_order;
 std::vector<int> audio::playback_history;
 int audio::current_song_index = 0;
 int audio::playback_history_index = -1;
 std::int32_t audio::playlist_context = -1;
+// MP1 is retained as a legacy MPEG-1 Layer I compatibility extension; new QA targets newer formats.
 std::initializer_list<std::string> audio::supported_files { "wav", "mp1", "mp2", "mp3", "ogg", "aif"};
 std::vector<const char*> audio::mute_detection;
