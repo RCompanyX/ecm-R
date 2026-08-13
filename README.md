@@ -134,8 +134,9 @@ MP1 is a legacy compatibility format and is not a primary QA target. Prefer MP2,
 ### Configuration and Persistence
 
 - Creates `ecm-r.x86.ini` automatically on first launch
-- Saves runtime changes for shuffle, repeat, volume, and hotkey settings back to the configuration file
+- Saves runtime changes for shuffle, repeat, in-game movie muting, volume, and hotkey settings back to the configuration file
 - Migrates older configurations by using legacy `volume` as the fallback source for context-specific volume settings
+- Migrates obsolete movie-muting entries to `[config] ingame_movie_muting = true`; an existing canonical value remains unchanged
 - Supports configurable playlist location, key bindings, loading-screen music handling, and per-track routing rules
 - Automatically adds newly discovered music files to `[trax]` with `ALL` routing and removes orphaned entries for deleted files on each startup
 
@@ -143,14 +144,14 @@ MP1 is a legacy compatibility format and is not a primary QA target. Prefer MP2,
 
 - Can stop custom music during loading screens and resume normal playback flow afterward through the `stop_music_on_loading_screens` setting, which defaults to `true`
 - Allows custom music to continue through loading screens when `stop_music_on_loading_screens` is set to `false`
-- Can optionally enable experimental muting for comic-style in-game movie sequences from the `Experimental` overlay menu or the `[experimental]` `ingame_movie_muting` setting
+- Includes validated muting for comic-style in-game movie sequences from the `Actions` overlay menu or the `[config]` `ingame_movie_muting` setting, enabled by default in fresh configurations
 - Keeps the original game files untouched while replacing or muting game music through the mod runtime
 
 ## Configuration
 
 The full configuration reference is available in [CONFIGURATION.MD](CONFIGURATION.MD).
 
-Key supported settings include `frontend_volume`, `ingame_volume`, `shuffle_enabled`, `repeat_enabled`, `stop_music_on_loading_screens`, `toggle_overlay`, `pause_track`, `previous_track`, `skip_track`, `toggle_shuffle`, and `toggle_repeat`.
+Key supported settings include `frontend_volume`, `ingame_volume`, `shuffle_enabled`, `repeat_enabled`, `stop_music_on_loading_screens`, `ingame_movie_muting`, `toggle_overlay`, `pause_track`, `previous_track`, `skip_track`, `toggle_shuffle`, and `toggle_repeat`.
 
 Use `None` or `Unbound` in the `[keys]` section to disable a binding manually. The new `toggle_shuffle` and `toggle_repeat` hotkeys default to `None` until you assign them.
 

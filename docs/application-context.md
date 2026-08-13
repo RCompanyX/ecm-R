@@ -357,7 +357,7 @@ These are treated as game-owned sequences where ECM-R should pause its custom pl
 
 The NFSU2 reverse-engineering references document `IG_PlayMovie.fng` as the in-game movie package used by career movie playback paths such as `PostRaceFNGObject::PlayMovieIfNeeded`.
 
-ECM-R keeps that package behind the `[experimental]` `ingame_movie_muting` flag. When the flag is `true`, `IG_PlayMovie.fng` is added to `audio::mute_detection` and the runtime uses the experimental package-reconciliation path. When the flag is `false`, ECM-R keeps the legacy package-hook behavior and does not treat `IG_PlayMovie.fng` as a mute trigger.
+ECM-R controls that package with the normal `[config]` `ingame_movie_muting` setting. When enabled, `IG_PlayMovie.fng` is added to `audio::mute_detection` and the runtime reconciles pause state against loaded packages. Fresh configurations enable it by default. When disabled, ECM-R keeps the legacy package-hook behavior and does not treat `IG_PlayMovie.fng` as a mute trigger.
 
 ### Metadata and chyron text
 
@@ -393,10 +393,10 @@ The current NFSU2 integration depends on several direct patches and hooks in `sr
 
 The intercepted package-load function currently does this:
 
-- With `[experimental] ingame_movie_muting = false`, ECM-R keeps the legacy behavior: pause when the loaded package matches the mute-detection list, otherwise resume if `audio::game_paused` is already set.
-- With `[experimental] ingame_movie_muting = true`, ECM-R first calls the original package-load function and then reconciles pause state against the mute packages that are actually loaded.
+- With `[config] ingame_movie_muting = false`, ECM-R keeps the legacy behavior: pause when the loaded package matches the mute-detection list, otherwise resume if `audio::game_paused` is already set.
+- With `[config] ingame_movie_muting = true`, ECM-R first calls the original package-load function and then reconciles pause state against the mute packages that are actually loaded.
 
-When the experimental path is enabled, `audio::update()` also repeats this reconciliation each game tick so package transitions that do not cleanly map to a single `ShowFNG` event still keep ECM-R paused for the full lifetime of the active movie package.
+When movie muting is enabled, `audio::update()` also repeats this reconciliation each game tick so package transitions that do not cleanly map to a single `ShowFNG` event still keep ECM-R paused for the full lifetime of the active movie package.
 
 ## Overlay, Input, and User Controls
 
@@ -409,7 +409,6 @@ The default way to open it is the `toggle_overlay` hotkey, which defaults to `F1
 The overlay currently provides:
 
 - an `Actions` menu for volume and playback control,
-- an `Experimental` menu for runtime-only feature flags,
 - a `Hotkeys` menu for runtime rebinding,
 - a `Playlist` menu that lists discovered track names,
 - an `About` menu with attribution and support links.
@@ -424,6 +423,7 @@ The `Actions` menu exposes:
 - skip track,
 - shuffle toggle,
 - repeat toggle,
+- in-game movie muting toggle and state,
 - current context, active volume, and track count display.
 
 The volume UI intentionally reflects the active context so frontend and in-game values can be tuned separately.
@@ -497,7 +497,6 @@ The generated configuration contains these sections:
 
 - `[core]`
 - `[config]`
-- `[experimental]`
 - `[keys]`
 - `[trax]`
 
@@ -509,6 +508,7 @@ The settings layer persists:
 - legacy and context-specific volume values,
 - shuffle and repeat flags,
 - loading-screen handling,
+- in-game movie muting,
 - hotkey bindings,
 - per-track routing in `[trax]`.
 
@@ -517,6 +517,8 @@ The settings layer persists:
 The settings layer also repairs or migrates older configurations by:
 
 - using legacy `volume` as the fallback source for `frontend_volume` and `ingame_volume`,
+- respecting `[config] ingame_movie_muting` when present; otherwise promoting old `[experimental] ingame_movie_muting` or legacy `[config] experimental_ingame_movie_muting` entries to `true`,
+- defaulting missing movie-muting values to `true` and rewriting obsolete placements out of the INI,
 - adding missing config keys,
 - restoring invalid or duplicate hotkey entries to safe defaults,
 - rewriting the config when version or structure drift is detected.
@@ -561,7 +563,7 @@ Expected output paths include:
 - The loading-screen option stops custom audio entirely instead of keeping a resumable pause token for that track.
 - Track routing is currently coarse-grained: `ALL`, `FE`, and `IG` only.
 - The overlay lists tracks but does not manage playlist metadata or `[trax]` assignments directly.
-- The `Experimental` overlay menu currently exposes only `ingame_movie_muting`, and that flag is also persisted in the `[experimental]` INI section.
+- In-game movie muting is exposed in `Actions` and persisted as `[config] ingame_movie_muting`; fresh configurations enable it by default.
 - Runtime filenames and deployment expectations are compatibility-sensitive.
 
 ## Source-of-Truth File Map for Future Changes

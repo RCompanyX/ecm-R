@@ -63,6 +63,22 @@ namespace
 		return value ? value : fallback;
 	}
 
+	bool ini_section_exists(const std::string& path, const char* section)
+	{
+		const std::string expected = "[" + std::string(section) + "]";
+		std::istringstream stream(fs::read(path));
+		std::string line;
+		while (std::getline(stream, line))
+		{
+			if (trim_copy(line) == expected)
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
 	// Builds the version line persisted inside the [core] section.
 	std::string build_version_line()
 	{
@@ -236,11 +252,10 @@ namespace
 		output << build_volume_line("frontend_volume", frontend_volume) << "\n";
 		output << build_volume_line("ingame_volume", ingame_volume) << "\n";
 		output << "version = \"" << VERSION << "\"\n\n";
-      output << "[config]\n";
+		output << "[config]\n";
 		output << build_shuffle_enabled_line(shuffle_enabled) << "\n";
 		output << build_repeat_enabled_line(repeat_enabled) << "\n";
-		output << build_stop_music_on_loading_screens_line(stop_music_on_loading_screens) << "\n\n";
-		output << "[experimental]\n";
+		output << build_stop_music_on_loading_screens_line(stop_music_on_loading_screens) << "\n";
 		output << build_ingame_movie_muting_line(ingame_movie_muting) << "\n\n";
 		output << "[keys]\n";
 		for (const auto& binding : input::hotkey_bindings())
@@ -285,10 +300,11 @@ void settings::update()
 		const bool version_changed = std::strcmp(safe_ini_get(config, "core", "version", ""), VERSION) != 0;
 		const std::string legacy_volume = safe_ini_get(config, "core", "volume", "100");
 		const bool missing_stop_music_on_loading_screens = ini_get(config, "config", "stop_music_on_loading_screens") == nullptr;
-		const char* ingame_movie_muting_value = ini_get(config, "experimental", "ingame_movie_muting");
-		const char* legacy_ingame_movie_muting_value = ini_get(config, "config", "experimental_ingame_movie_muting");
-		const bool missing_ingame_movie_muting = ingame_movie_muting_value == nullptr;
-		const bool legacy_ingame_movie_muting_present = legacy_ingame_movie_muting_value != nullptr;
+		const char* canonical_ingame_movie_muting_value = ini_get(config, "config", "ingame_movie_muting");
+		const bool old_ingame_movie_muting_present = ini_get(config, "experimental", "ingame_movie_muting") != nullptr;
+		const bool legacy_ingame_movie_muting_present = ini_get(config, "config", "experimental_ingame_movie_muting") != nullptr;
+		const bool old_experimental_section_present = ini_section_exists(settings::config_file, "experimental");
+		const bool missing_ingame_movie_muting = canonical_ingame_movie_muting_value == nullptr;
 		const bool missing_shuffle_enabled = ini_get(config, "config", "shuffle_enabled") == nullptr;
 		const bool missing_repeat_enabled = ini_get(config, "config", "repeat_enabled") == nullptr;
 		const bool missing_frontend_volume = ini_get(config, "core", "frontend_volume") == nullptr;
@@ -302,7 +318,7 @@ void settings::update()
 		audio::shuffle_enabled = settings::get_boolean(safe_ini_get(config, "config", "shuffle_enabled", "true"));
 		audio::repeat_enabled = settings::get_boolean(safe_ini_get(config, "config", "repeat_enabled", "true"));
 		audio::stop_music_on_loading_screens = settings::get_boolean(safe_ini_get(config, "config", "stop_music_on_loading_screens", "true"));
-		audio::ingame_movie_muting = settings::get_boolean(ingame_movie_muting_value ? ingame_movie_muting_value : (legacy_ingame_movie_muting_value ? legacy_ingame_movie_muting_value : "false"));
+		audio::ingame_movie_muting = settings::get_boolean(canonical_ingame_movie_muting_value ? canonical_ingame_movie_muting_value : "true");
 		input::reset_all_hotkeys();
 		for (const auto& binding : input::hotkey_bindings())
 		{
@@ -337,7 +353,7 @@ void settings::update()
 
 		settings::sync_trax_entries();
 
-		if (version_changed || missing_stop_music_on_loading_screens || missing_ingame_movie_muting || legacy_ingame_movie_muting_present || missing_shuffle_enabled || missing_repeat_enabled || missing_frontend_volume || missing_ingame_volume || missing_hotkey_entry || invalid_hotkey_entry)
+		if (version_changed || missing_stop_music_on_loading_screens || missing_ingame_movie_muting || old_ingame_movie_muting_present || old_experimental_section_present || legacy_ingame_movie_muting_present || missing_shuffle_enabled || missing_repeat_enabled || missing_frontend_volume || missing_ingame_volume || missing_hotkey_entry || invalid_hotkey_entry)
 		{
 			fs::write(settings::config_file, build_config_text(audio::playlist_name, audio::volume, audio::frontend_volume, audio::ingame_volume, audio::stop_music_on_loading_screens, audio::ingame_movie_muting, audio::shuffle_enabled, audio::repeat_enabled), false);
 		}
@@ -362,7 +378,7 @@ void settings::update()
 		audio::shuffle_enabled = true;
 		audio::repeat_enabled = true;
 		audio::stop_music_on_loading_screens = true;
-		audio::ingame_movie_muting = false;
+		audio::ingame_movie_muting = true;
 		fs::write(settings::config_file, build_config_text(audio::playlist_name, audio::volume, audio::frontend_volume, audio::ingame_volume, audio::stop_music_on_loading_screens, audio::ingame_movie_muting, audio::shuffle_enabled, audio::repeat_enabled), false);
 		return;
 	}
@@ -378,11 +394,6 @@ bool settings::save_core_integer(const char* key, const int value)
 bool settings::save_config_boolean(const char* key, const bool value)
 {
 	return save_ini_value("config", key, value ? "true" : "false");
-}
-
-bool settings::save_experimental_boolean(const char* key, const bool value)
-{
-	return save_ini_value("experimental", key, value ? "true" : "false");
 }
 
 bool settings::save_hotkey_binding(const char* key_name, const std::uint32_t key)
