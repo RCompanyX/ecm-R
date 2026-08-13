@@ -413,7 +413,7 @@ The overlay currently provides:
 - a `Playlist` menu that lists discovered track names,
 - an `About` menu with attribution and support links.
 
-The `Experimental` menu implementation remains retained internally for possible future controls, but it is not invoked by the current UI.
+An empty `Experimental` menu entry point remains retained internally for possible future controls, but it is not invoked by the current UI.
 
 ### Actions menu behavior
 

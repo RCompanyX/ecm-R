@@ -705,31 +705,9 @@ void menus::main_menu_bar()
 	}
 }
 
-// Retains the experimental controls for possible future UI use; not invoked by the current menu bar.
+// Placeholder for future experimental controls; not invoked by the current menu bar.
 void menus::experimental()
 {
-	if (!ImGui::BeginMenu("Experimental"))
-	{
-		return;
-	}
-
-	ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + 420.0f);
-	ImGui::TextWrapped("Experimental options may change, move to the normal configuration later, or be removed if they prove unstable.");
-	ImGui::PopTextWrapPos();
-	ImGui::Spacing();
-
-	bool ingame_movie_muting = audio::ingame_movie_muting;
-	if (ImGui::Checkbox("In-Game Movie Muting", &ingame_movie_muting))
-	{
-		audio::set_ingame_movie_muting(ingame_movie_muting);
-	}
-
-	ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + 420.0f);
-	ImGui::TextWrapped("Pauses ECM-R during comic-style movie sequences that use NFSU2's IG_PlayMovie.fng package.");
-	ImGui::PopTextWrapPos();
-	ImGui::Text("State: %s", audio::ingame_movie_muting ? "Enabled" : "Disabled");
-
-	ImGui::EndMenu();
 }
 
 // Renders playback controls, context-aware volume sliders, and runtime status.

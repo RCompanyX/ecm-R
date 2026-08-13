@@ -8,7 +8,7 @@ This changelog tracks the tagged releases recorded in this repository.
 
 ### Changed
 - Promoted the existing in-game movie muting option from Experimental to normal validated functionality, exposed it in `Actions`, and enabled it by default for fresh configurations and migrations from obsolete placements.
-- Moved canonical movie-muting persistence to `[config]`, hid the retained Experimental menu from the current UI while keeping it available for future use, and updated configuration migration to respect only an existing canonical value while defaulting legacy placements to `true`.
+- Moved canonical movie-muting persistence to `[config]`, hid the empty Experimental menu container from the current UI while retaining its entry point for future use, and updated configuration migration to respect only an existing canonical value while defaulting legacy placements to `true`.
 
 ## [v0.5.14-alpha] - 2026-08-12
 
