@@ -785,10 +785,7 @@ void menus::actions()
 		{
 			audio::set_ingame_movie_muting(ingame_movie_muting);
 		}
-		ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + 420.0f);
-		ImGui::TextWrapped("Pauses music during comic-style movie sequences.");
-		ImGui::PopTextWrapPos();
-		ImGui::Text("State: %s", audio::ingame_movie_muting ? "Enabled" : "Disabled");
+		ImGui::Separator();
 
 		ImGui::Text("Mode: %s", audio::shuffle_enabled ? "Random" : "Sequential");
      ImGui::Text("Repeat: %s", audio::repeat_enabled ? "All" : "Off");
