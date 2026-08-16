@@ -65,7 +65,7 @@ public:
 	static void set_repeat_enabled(bool enabled);
 	/// Flips repeat mode.
 	static void toggle_repeat_enabled();
-	/// Enables or disables the experimental in-game movie mute path.
+	/// Enables or disables in-game movie muting.
 	static void set_ingame_movie_muting(bool enabled);
 	/// Returns whether the current track still has a resumable BASS stream.
 	static bool can_resume_current_song();

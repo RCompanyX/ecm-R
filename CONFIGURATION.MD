@@ -20,9 +20,7 @@ version = "..."
 shuffle_enabled = true
 repeat_enabled = true
 stop_music_on_loading_screens = true
-
-[experimental]
-ingame_movie_muting = false
+ingame_movie_muting = true
 
 [keys]
 toggle_overlay = F11
@@ -102,19 +100,20 @@ Game Folder/
 - **Default:** `true`
 - **Behavior:** Halts the active track on loading screens. If set to `false`, music plays uninterrupted across screens.
 
----
-
-## `[experimental]` Settings
-
 ### `ingame_movie_muting`
 - **Description:** Resolves audio conflicts during comic or story movie sequences.
-- **Default:** `false`
+- **Default:** `true` for fresh configurations.
 - **Behavior:** When set to `true`, the game treats `IG_PlayMovie.fng` as a mute trigger. The plugin reconciles the active pause state dynamically against loaded interface packages. This prevents background music from clashing with comic voice-overs and ensures playback resumes only after the movie finishes.
 
 ### Accepted Boolean Formats
-All `[config]` and `[experimental]` boolean parameters accept:
+All `[config]` boolean parameters accept:
 - **True values:** `true`, `1`, `yes`, `on`
 - **False values:** `false`, `0`, `no`, `off`
+
+### Configuration migration
+- The canonical `[config] ingame_movie_muting` value takes precedence.
+- If the canonical key is absent, older `[experimental] ingame_movie_muting` and legacy `[config] experimental_ingame_movie_muting` entries migrate to `true`, regardless of their old value.
+- If no movie-muting key exists, the value is also `true`. Migrated files are rewritten without the obsolete section and key.
 
 ---
 

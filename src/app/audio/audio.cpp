@@ -901,7 +901,7 @@ void audio::set_ingame_movie_muting(const bool enabled)
 
 	audio::ingame_movie_muting = enabled;
 	rebuild_mute_detection();
-	settings::save_experimental_boolean("ingame_movie_muting", audio::ingame_movie_muting);
+	settings::save_config_boolean("ingame_movie_muting", audio::ingame_movie_muting);
 	audio::sync_game_pause_from_mute_packages();
 }
 
@@ -936,7 +936,7 @@ std::int32_t audio::frontend_volume = 50;
 std::int32_t audio::ingame_volume = 50;
 std::int32_t audio::applied_volume = -1;
 bool audio::stop_music_on_loading_screens = true;
-bool audio::ingame_movie_muting = false;
+bool audio::ingame_movie_muting = true;
 bool audio::shuffle_enabled = true;
 bool audio::repeat_enabled = true;
 bool audio::playlist_ended = false;
