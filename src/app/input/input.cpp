@@ -3,6 +3,7 @@
 #include "logger/logger.hpp"
 #include "audio/audio.hpp"
 #include "settings/settings.hpp"
+#include "localization/localization.hpp"
 
 #include "input.hpp"
 
@@ -244,7 +245,7 @@ namespace
 
 		if (!input::is_supported_key(key))
 		{
-			set_capture_feedback(hotkey_capture_state.action, std::string("Unsupported key. Use ") + input::supported_key_help() + ".", true);
+			set_capture_feedback(hotkey_capture_state.action, localization::format("input.unsupported_key", {{ "keys", input::supported_key_help() }}), true);
 			return true;
 		}
 
@@ -264,11 +265,11 @@ namespace
 		if (binding && !settings::save_hotkey_binding(binding->ini_key, key))
 		{
 			input::assign_hotkey(action, previous_key);
-			set_capture_feedback(action, std::string("Failed to save the binding for ") + key_name + ". The previous key was restored.", true);
+			set_capture_feedback(action, localization::format("input.save_failed", {{ "key", key_name }}), true);
 		}
 		else
 		{
-			set_capture_feedback(action, std::string("Bound to ") + key_name + ".", false);
+			set_capture_feedback(action, localization::format("input.bound_to", {{ "key", key_name }}), false);
 		}
 		sync_hotkey_latches();
 		return true;
@@ -279,12 +280,12 @@ namespace
 const std::array<input::hotkey_binding, input::hotkey_count>& input::hotkey_bindings()
 {
 	static const std::array<input::hotkey_binding, input::hotkey_count> bindings = {{
-		{ hotkey_action::toggle_overlay, "Toggle Overlay", "toggle_overlay", VK_F11, false, false, &input::toggle_overlay_key },
-		{ hotkey_action::pause_track, "Pause / Resume", "pause_track", VK_F8, false, true, &input::pause_track_key },
-		{ hotkey_action::previous_track, "Previous Track", "previous_track", VK_F9, false, true, &input::previous_track_key },
-		{ hotkey_action::skip_track, "Skip Track", "skip_track", VK_F10, false, true, &input::skip_track_key },
-		{ hotkey_action::toggle_shuffle, "Toggle Shuffle", "toggle_shuffle", input::unbound_key, true, true, &input::toggle_shuffle_key },
-		{ hotkey_action::toggle_repeat, "Toggle Repeat", "toggle_repeat", input::unbound_key, true, true, &input::toggle_repeat_key },
+		{ hotkey_action::toggle_overlay, "hotkey.toggle_overlay", "toggle_overlay", VK_F11, false, false, &input::toggle_overlay_key },
+		{ hotkey_action::pause_track, "hotkey.pause_track", "pause_track", VK_F8, false, true, &input::pause_track_key },
+		{ hotkey_action::previous_track, "hotkey.previous_track", "previous_track", VK_F9, false, true, &input::previous_track_key },
+		{ hotkey_action::skip_track, "hotkey.skip_track", "skip_track", VK_F10, false, true, &input::skip_track_key },
+		{ hotkey_action::toggle_shuffle, "hotkey.toggle_shuffle", "toggle_shuffle", input::unbound_key, true, true, &input::toggle_shuffle_key },
+		{ hotkey_action::toggle_repeat, "hotkey.toggle_repeat", "toggle_repeat", input::unbound_key, true, true, &input::toggle_repeat_key },
 	}};
 
 	return bindings;
@@ -459,7 +460,7 @@ bool input::is_supported_key(const std::uint32_t key)
 // Returns the supported-key list shown in the hotkeys menu and error messages.
 const char* input::supported_key_help()
 {
-	return "F1-F24, A-Z, 0-9, Space, Tab, Enter, Esc, Backspace, Insert, Delete, Home, End, PageUp, PageDown, Up, Down, Left, Right";
+	return localization::text("hotkeys.supported_keys");
 }
 
 // Assigns a hotkey after validating support and checking for duplicate bindings.
@@ -475,7 +476,7 @@ bool input::assign_hotkey(const input::hotkey_action action, const std::uint32_t
 	{
 		if (error_message)
 		{
-			*error_message = "Unknown hotkey action.";
+			*error_message = localization::text("input.unknown_action");
 		}
 
 		return false;
@@ -485,7 +486,7 @@ bool input::assign_hotkey(const input::hotkey_action action, const std::uint32_t
 	{
 		if (error_message)
 		{
-			*error_message = std::string("Unsupported key. Use ") + input::supported_key_help() + ".";
+			*error_message = localization::format("input.unsupported_key", {{ "keys", input::supported_key_help() }});
 		}
 
 		return false;
@@ -507,7 +508,7 @@ bool input::assign_hotkey(const input::hotkey_action action, const std::uint32_t
 
 			if (error_message)
 			{
-				*error_message = std::string(input::key_to_string(key)) + " is already assigned to " + other_binding.label + ".";
+				*error_message = localization::format("input.duplicate", {{ "key", input::key_to_string(key) }, { "action", localization::text(other_binding.label_key) }});
 			}
 
 			return false;
@@ -569,7 +570,7 @@ void input::cancel_hotkey_capture()
 	const hotkey_action action = hotkey_capture_state.action;
 	hotkey_capture_state.active = false;
 	hotkey_capture_state.action = hotkey_action::count;
-	set_capture_feedback(action, "Rebind canceled.", false);
+	set_capture_feedback(action, localization::text("input.canceled"), false);
 	sync_hotkey_latches();
 }
 

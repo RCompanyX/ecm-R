@@ -21,6 +21,7 @@ shuffle_enabled = true
 repeat_enabled = true
 stop_music_on_loading_screens = true
 ingame_movie_muting = true
+language = en
 
 [keys]
 toggle_overlay = F11
@@ -52,6 +53,9 @@ Game Folder/
     ecm-r.x86.asi
     ecm-r.x86.ini
     bass.dll
+    translations/
+      en.ini
+      es.ini
     Music/
       Artist - Song 01.mp3
       Artist - Song 02.ogg
@@ -105,6 +109,13 @@ Game Folder/
 - **Default:** `true` for fresh configurations.
 - **Behavior:** When set to `true`, the game treats `IG_PlayMovie.fng` as a mute trigger. The plugin reconciles the active pause state dynamically against loaded interface packages. This prevents background music from clashing with comic voice-overs and ensures playback resumes only after the movie finishes.
 
+### `language`
+- **Description:** Selects the overlay language.
+- **Default:** `en`
+- **Accepted values:** `en` (English) or `es` (neutral Spanish).
+- **Behavior:** The active language changes on the next overlay frame and is saved immediately. Invalid or missing values are repaired to `en`.
+- **Translation files:** Editable UTF-8 `translations/en.ini` and `translations/es.ini` files are loaded next to the plugin at startup. Missing or invalid entries safely fall back to English and compiled defaults. Track metadata, filenames, paths, INI keys, and game chyrons are never translated.
+
 ### Accepted Boolean Formats
 All `[config]` boolean parameters accept:
 - **True values:** `true`, `1`, `yes`, `on`
@@ -114,6 +125,7 @@ All `[config]` boolean parameters accept:
 - The canonical `[config] ingame_movie_muting` value takes precedence.
 - If the canonical key is absent, older `[experimental] ingame_movie_muting` and legacy `[config] experimental_ingame_movie_muting` entries migrate to `true`, regardless of their old value.
 - If no movie-muting key exists, the value is also `true`. Migrated files are rewritten without the obsolete section and key.
+- The old Experimental menu entry point is retained as an empty unused placeholder; movie muting remains canonical under `[config] ingame_movie_muting`.
 
 ---
 

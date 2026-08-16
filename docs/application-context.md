@@ -95,6 +95,9 @@ Game Folder/
     ecm-r.x86.asi
     ecm-r.x86.ini
     bass.dll
+    translations/
+      en.ini
+      es.ini
     Music/
       Artist - Song 01.mp3
       Artist - Song 02.ogg
@@ -107,6 +110,7 @@ Key deployment constraints:
 - `bass.dll` is not bundled by the repository and must be obtained from the official BASS distribution. No BASS SDK binaries are committed, and no unofficial redistribution is permitted.
 - ECM-R loads `bass.dll` dynamically from the same directory as the plugin module.
 - The active build target for NFSU2 is `Release | Win-x86`.
+- Editable overlay translations are deployed as UTF-8 `translations/en.ini` and `translations/es.ini` beside the plugin.
 - The runtime-facing startup guidance and the maintained documentation both assume deployment next to `ecm-r.x86.asi`.
 
 ## High-Level Architecture
@@ -120,6 +124,7 @@ Key deployment constraints:
 | Input and hotkeys | Overlay toggle, playback hotkeys, rebinding capture, duplicate prevention, key polling | `src/app/input/input.*` |
 | Overlay UI | ImGui menus, runtime controls, hotkeys UI, playlist listing, about dialog, release notice | `src/app/menus/menus.*` |
 | Settings and persistence | INI creation, migration, runtime saves, default hotkeys, `[trax]` normalization | `src/app/settings/settings.*` |
+| Localization | Startup-cached UTF-8 English/Spanish bundles, placeholder validation, runtime locale selection | `src/app/localization/localization.*`, `translations/*.ini` |
 | Build and packaging | Premake workspace, output naming, generated solution layout | `lua/windows.lua`, `generate.bat`, `BUILDING.md` |
 
 ## Runtime Lifecycle
@@ -144,6 +149,7 @@ The attach thread then:
 - Initializes MinHook.
 - Applies the NFSU2-specific patches and hooks.
 - Loads the persisted settings before audio starts.
+- Loads and validates both translation bundles during settings initialization, before BASS startup dialogs can appear.
 - Initializes Kiero and selects the render backend.
 - Installs backend-specific ImGui hooks.
 - Enables all MinHook hooks.
@@ -243,6 +249,7 @@ The repository has been migrated to manual dynamic loading of BASS.
 If `bass.dll` is missing, wrong, or incomplete:
 
 - ECM-R shows a startup popup,
+- static popup templates follow the selected overlay language,
 - logs the error,
 - sets `global::shutdown = true`,
 - disables music for the session.
@@ -411,7 +418,8 @@ The overlay currently provides:
 - an `Actions` menu for volume and playback control,
 - a `Hotkeys` menu for runtime rebinding,
 - a `Playlist` menu that lists discovered track names,
-- an `About` menu with attribution and support links.
+- an `About` menu with attribution and support links,
+- a `Language` submenu for English and neutral Spanish.
 
 An empty `Experimental` menu entry point remains retained internally for possible future controls, but it is not invoked by the current UI.
 
@@ -456,6 +464,8 @@ Important hotkey rules:
 - Unsupported keys are rejected.
 - The overlay does not expose a `Clear` button for `toggle_overlay` to reduce the chance of losing access to the UI.
 - While capture mode is active, ECM-R suspends hotkey execution so the candidate key does not trigger playback or overlay actions.
+- Overlay labels and feedback use the active cached UTF-8 bundle; track metadata, filenames, paths, internal identifiers, INI keys, and game chyrons remain untranslated.
+- Language changes are persisted immediately and applied after the current ImGui draw, so the following frame uses one consistent bundle. Active hotkey capture remains active while transient feedback is cleared.
 - Some actions are handled both from the window procedure and from `GetAsyncKeyState` polling to remain responsive in the hooked environment.
 
 ### First-chyron lockout
@@ -502,6 +512,8 @@ The generated configuration contains these sections:
 - `[keys]`
 - `[trax]`
 
+`[config] language` accepts `en` or `es`, defaults to `en`, and invalid or missing values are repaired to `en`.
+
 ### Persisted behavior
 
 The settings layer persists:
@@ -511,6 +523,7 @@ The settings layer persists:
 - shuffle and repeat flags,
 - loading-screen handling,
 - in-game movie muting,
+- overlay language,
 - hotkey bindings,
 - per-track routing in `[trax]`.
 
@@ -522,6 +535,7 @@ The settings layer also repairs or migrates older configurations by:
 - respecting `[config] ingame_movie_muting` when present; otherwise promoting old `[experimental] ingame_movie_muting` or legacy `[config] experimental_ingame_movie_muting` entries to `true`,
 - defaulting missing movie-muting values to `true` and rewriting obsolete placements out of the INI,
 - adding missing config keys,
+- repairing missing or invalid `[config] language` values to `en`,
 - restoring invalid or duplicate hotkey entries to safe defaults,
 - rewriting the config when version or structure drift is detected.
 
@@ -556,6 +570,8 @@ Expected output paths include:
 
 - `build/bin/Release-Win-x86/x86/ecm-r.x86.dll`
 - `build/bin/Release-Win-x86/x86/ecm-r.x86.asi`
+- `build/bin/Release-Win-x86/x86/translations/en.ini`
+- `build/bin/Release-Win-x86/x86/translations/es.ini`
 
 ## Known Boundaries and Non-Obvious Constraints
 
@@ -566,6 +582,8 @@ Expected output paths include:
 - Track routing is currently coarse-grained: `ALL`, `FE`, and `IG` only.
 - The overlay lists tracks but does not manage playlist metadata or `[trax]` assignments directly.
 - In-game movie muting is exposed in `Actions` and persisted as `[config] ingame_movie_muting`; fresh configurations enable it by default.
+- The retained Experimental menu entry point is empty and unused; it is not the location for current controls.
+- Static BASS startup errors use the active overlay locale while preserving dynamic Windows/BASS diagnostics; UTF-8 text is converted through `MessageBoxW`.
 - Runtime filenames and deployment expectations are compatibility-sensitive.
 
 ## Source-of-Truth File Map for Future Changes
@@ -579,6 +597,7 @@ Use this file map when scoping work:
 - BASS dynamic loading boundary: `src/app/audio/bass_api.cpp`
 - Playback metadata extraction: `src/app/audio/player.cpp`
 - Hotkey behavior and rebinding safety: `src/app/input/input.cpp`
+- Localization parsing and active bundle selection: `src/app/localization/localization.cpp`
 - Overlay behavior and release notice logic: `src/app/menus/menus.cpp`
 - INI creation, migration, and persistence: `src/app/settings/settings.cpp`
 - Build outputs and naming: `lua/windows.lua`
@@ -598,6 +617,7 @@ Before changing playback, hooks, or settings, verify all of the following:
 - Whether the overlay and hotkeys still call the same shared helpers.
 - Whether any hotkey rebinding edge case can cause live actions during capture.
 - Whether configuration persistence and migration still match the runtime behavior.
+- Whether translation bundles, `[config] language`, placeholder fallback, and next-frame locale switching remain aligned.
 - Whether the runtime filenames, `bass.dll` expectations, and deployment layout remain stable.
 
 For audio-related work, the most failure-prone regression areas are:

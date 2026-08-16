@@ -11,6 +11,7 @@
 #include "hook/hook.hpp"
 #include "audio/audio.hpp"
 #include "input/input.hpp"
+#include "localization/localization.hpp"
 
 namespace
 {
@@ -256,7 +257,8 @@ namespace
 		output << build_shuffle_enabled_line(shuffle_enabled) << "\n";
 		output << build_repeat_enabled_line(repeat_enabled) << "\n";
 		output << build_stop_music_on_loading_screens_line(stop_music_on_loading_screens) << "\n";
-		output << build_ingame_movie_muting_line(ingame_movie_muting) << "\n\n";
+		output << build_ingame_movie_muting_line(ingame_movie_muting) << "\n";
+		output << "language = " << localization::code(localization::current()) << "\n\n";
 		output << "[keys]\n";
 		for (const auto& binding : input::hotkey_bindings())
 		{
@@ -307,11 +309,17 @@ void settings::update()
 		const bool missing_ingame_movie_muting = canonical_ingame_movie_muting_value == nullptr;
 		const bool missing_shuffle_enabled = ini_get(config, "config", "shuffle_enabled") == nullptr;
 		const bool missing_repeat_enabled = ini_get(config, "config", "repeat_enabled") == nullptr;
+		const char* configured_language_value = ini_get(config, "config", "language");
+		localization::language configured_language = localization::language::en;
+		const bool valid_language = localization::parse_language(configured_language_value, configured_language);
+		const bool missing_language = configured_language_value == nullptr;
+		const bool invalid_language = configured_language_value != nullptr && !valid_language;
 		const bool missing_frontend_volume = ini_get(config, "core", "frontend_volume") == nullptr;
 		const bool missing_ingame_volume = ini_get(config, "core", "ingame_volume") == nullptr;
 		bool missing_hotkey_entry = false;
 		bool invalid_hotkey_entry = false;
 
+		localization::init(valid_language ? configured_language : localization::language::en);
 		audio::volume = std::stoi(legacy_volume);
 		audio::frontend_volume = std::stoi(safe_ini_get(config, "core", "frontend_volume", legacy_volume.c_str()));
 		audio::ingame_volume = std::stoi(safe_ini_get(config, "core", "ingame_volume", legacy_volume.c_str()));
@@ -353,13 +361,14 @@ void settings::update()
 
 		settings::sync_trax_entries();
 
-		if (version_changed || missing_stop_music_on_loading_screens || missing_ingame_movie_muting || old_ingame_movie_muting_present || old_experimental_section_present || legacy_ingame_movie_muting_present || missing_shuffle_enabled || missing_repeat_enabled || missing_frontend_volume || missing_ingame_volume || missing_hotkey_entry || invalid_hotkey_entry)
+		if (version_changed || missing_stop_music_on_loading_screens || missing_ingame_movie_muting || old_ingame_movie_muting_present || old_experimental_section_present || legacy_ingame_movie_muting_present || missing_shuffle_enabled || missing_repeat_enabled || missing_language || invalid_language || missing_frontend_volume || missing_ingame_volume || missing_hotkey_entry || invalid_hotkey_entry)
 		{
 			fs::write(settings::config_file, build_config_text(audio::playlist_name, audio::volume, audio::frontend_volume, audio::ingame_volume, audio::stop_music_on_loading_screens, audio::ingame_movie_muting, audio::shuffle_enabled, audio::repeat_enabled), false);
 		}
 	}
 	else if (!fs::exists(settings::config_file))
 	{
+		localization::init(localization::language::en);
 		input::reset_all_hotkeys();
 
 		audio::playlist_name = "Music";
@@ -394,6 +403,11 @@ bool settings::save_core_integer(const char* key, const int value)
 bool settings::save_config_boolean(const char* key, const bool value)
 {
 	return save_ini_value("config", key, value ? "true" : "false");
+}
+
+bool settings::save_language(const localization::language value)
+{
+	return save_ini_value("config", "language", localization::code(value));
 }
 
 bool settings::save_hotkey_binding(const char* key_name, const std::uint32_t key)
