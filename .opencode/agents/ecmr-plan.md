@@ -2,7 +2,7 @@
 description: ECM-R planner. Analyzes, researches, creates plan. Delegates execution to ecmr-dev.
 mode: primary
 model: opencode-go/gpt-5.6-luna
-variant: xhigh
+variant: max
 color: '#2ECC71'
 permission:
   edit: deny

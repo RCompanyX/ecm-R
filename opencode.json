@@ -7,12 +7,12 @@
     "docs/application-context.md"
   ],
   "agent": {
-    "build": { "variant": "xhigh" },
-    "plan": { "variant": "xhigh" },
-    "general": { "variant": "xhigh" },
-    "explore": { "variant": "xhigh" },
-    "compaction": { "variant": "xhigh" },
-    "title": { "variant": "xhigh" },
-    "summary": { "variant": "xhigh" }
+    "build": { "variant": "max" },
+    "plan": { "variant": "max" },
+    "general": { "variant": "max" },
+    "explore": { "variant": "max" },
+    "compaction": { "variant": "max" },
+    "title": { "variant": "max" },
+    "summary": { "variant": "max" }
   }
 }
