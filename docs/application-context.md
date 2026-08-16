@@ -95,9 +95,10 @@ Game Folder/
     ecm-r.x86.asi
     ecm-r.x86.ini
     bass.dll
-    translations/
-      en.ini
-      es.ini
+    ecm-r/
+      translations/
+        en.ini
+        es.ini
     Music/
       Artist - Song 01.mp3
       Artist - Song 02.ogg
@@ -110,7 +111,7 @@ Key deployment constraints:
 - `bass.dll` is not bundled by the repository and must be obtained from the official BASS distribution. No BASS SDK binaries are committed, and no unofficial redistribution is permitted.
 - ECM-R loads `bass.dll` dynamically from the same directory as the plugin module.
 - The active build target for NFSU2 is `Release | Win-x86`.
-- Editable overlay translations are deployed as UTF-8 `translations/en.ini` and `translations/es.ini` beside the plugin.
+- Editable overlay translations are deployed as UTF-8 `ecm-r/translations/en.ini` and `ecm-r/translations/es.ini` beside the plugin.
 - The runtime-facing startup guidance and the maintained documentation both assume deployment next to `ecm-r.x86.asi`.
 
 ## High-Level Architecture
@@ -124,7 +125,7 @@ Key deployment constraints:
 | Input and hotkeys | Overlay toggle, playback hotkeys, rebinding capture, duplicate prevention, key polling | `src/app/input/input.*` |
 | Overlay UI | ImGui menus, runtime controls, hotkeys UI, playlist listing, about dialog, release notice | `src/app/menus/menus.*` |
 | Settings and persistence | INI creation, migration, runtime saves, default hotkeys, `[trax]` normalization | `src/app/settings/settings.*` |
-| Localization | Startup-cached UTF-8 English/Spanish bundles, placeholder validation, runtime locale selection | `src/app/localization/localization.*`, `translations/*.ini` |
+| Localization | Startup-cached UTF-8 English/Spanish bundles, placeholder validation, runtime locale selection | `src/app/localization/localization.*`, `ecm-r/translations/*.ini` |
 | Build and packaging | Premake workspace, output naming, generated solution layout | `lua/windows.lua`, `generate.bat`, `BUILDING.md` |
 
 ## Runtime Lifecycle
@@ -570,8 +571,8 @@ Expected output paths include:
 
 - `build/bin/Release-Win-x86/x86/ecm-r.x86.dll`
 - `build/bin/Release-Win-x86/x86/ecm-r.x86.asi`
-- `build/bin/Release-Win-x86/x86/translations/en.ini`
-- `build/bin/Release-Win-x86/x86/translations/es.ini`
+- `build/bin/Release-Win-x86/x86/ecm-r/translations/en.ini`
+- `build/bin/Release-Win-x86/x86/ecm-r/translations/es.ini`
 
 ## Known Boundaries and Non-Obvious Constraints
 

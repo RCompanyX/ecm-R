@@ -139,9 +139,9 @@ workspace "ECM-R"
        filter "platforms:Win-x86"
 			postbuildcommands {
 				"IF NOT EXIST \"$(OutDir)x86\" mkdir \"$(OutDir)x86\"",
-				"IF NOT EXIST \"$(OutDir)x86\\translations\" mkdir \"$(OutDir)x86\\translations\"",
-				"copy /y \"$(ProjectDir)..\\translations\\en.ini\" \"$(OutDir)x86\\translations\\en.ini\"",
-				"copy /y \"$(ProjectDir)..\\translations\\es.ini\" \"$(OutDir)x86\\translations\\es.ini\"",
+				"IF NOT EXIST \"$(OutDir)x86\\ecm-r\\translations\" mkdir \"$(OutDir)x86\\ecm-r\\translations\"",
+				"copy /y \"$(ProjectDir)..\\ecm-r\\translations\\en.ini\" \"$(OutDir)x86\\ecm-r\\translations\\en.ini\"",
+				"copy /y \"$(ProjectDir)..\\ecm-r\\translations\\es.ini\" \"$(OutDir)x86\\ecm-r\\translations\\es.ini\"",
 				"IF NOT EXIST \"$(OutDir)\"x86 mkdir \"$(OutDir)x86\\",
                   "copy /y \"$(OutDir)x86\\ecm-r.x86.dll\" \"$(OutDir)x86\\ecm-r.x86.asi\"",
 			}
@@ -150,12 +150,12 @@ workspace "ECM-R"
 			postbuildcommands {
 				"IF NOT EXIST \"$(OutDir)x86\" mkdir \"$(OutDir)x86\"",
 				"IF NOT EXIST \"$(OutDir)x86_64\" mkdir \"$(OutDir)x86_64\"",
-				"IF NOT EXIST \"$(OutDir)x86\\translations\" mkdir \"$(OutDir)x86\\translations\"",
-				"copy /y \"$(ProjectDir)..\\translations\\en.ini\" \"$(OutDir)x86\\translations\\en.ini\"",
-				"copy /y \"$(ProjectDir)..\\translations\\es.ini\" \"$(OutDir)x86\\translations\\es.ini\"",
-				"IF NOT EXIST \"$(OutDir)x86_64\\translations\" mkdir \"$(OutDir)x86_64\\translations\"",
-				"copy /y \"$(ProjectDir)..\\translations\\en.ini\" \"$(OutDir)x86_64\\translations\\en.ini\"",
-				"copy /y \"$(ProjectDir)..\\translations\\es.ini\" \"$(OutDir)x86_64\\translations\\es.ini\"",
+				"IF NOT EXIST \"$(OutDir)x86\\ecm-r\\translations\" mkdir \"$(OutDir)x86\\ecm-r\\translations\"",
+				"copy /y \"$(ProjectDir)..\\ecm-r\\translations\\en.ini\" \"$(OutDir)x86\\ecm-r\\translations\\en.ini\"",
+				"copy /y \"$(ProjectDir)..\\ecm-r\\translations\\es.ini\" \"$(OutDir)x86\\ecm-r\\translations\\es.ini\"",
+				"IF NOT EXIST \"$(OutDir)x86_64\\ecm-r\\translations\" mkdir \"$(OutDir)x86_64\\ecm-r\\translations\"",
+				"copy /y \"$(ProjectDir)..\\ecm-r\\translations\\en.ini\" \"$(OutDir)x86_64\\ecm-r\\translations\\en.ini\"",
+				"copy /y \"$(ProjectDir)..\\ecm-r\\translations\\es.ini\" \"$(OutDir)x86_64\\ecm-r\\translations\\es.ini\"",
 				"IF NOT EXIST \"$(OutDir)\"x86 mkdir \"$(OutDir)x86\\",
 				"IF NOT EXIST \"$(OutDir)\"x86_64 mkdir \"$(OutDir)x86_64\\",
               "copy /y \"$(OutDir)x86\\ecm-r.x86.dll\" \"$(OutDir)x86\\ecm-r.x86.asi\"",

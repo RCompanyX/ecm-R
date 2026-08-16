@@ -60,8 +60,9 @@ deps/bass/**/.vs/
 # Music and user data
 Music/
 *.ini
-!translations/
-!translations/*.ini
+!ecm-r/
+!ecm-r/translations/
+!ecm-r/translations/*.ini
 
 # Misc
 *.bak

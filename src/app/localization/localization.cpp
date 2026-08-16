@@ -375,8 +375,8 @@ namespace localization
 		if (!bundles_loaded)
 		{
 			cached_english = build_compiled_bundle();
-			cached_english = load_external_bundle(fs::get_self_path() + "translations\\en.ini", cached_english);
-			cached_spanish = load_external_bundle(fs::get_self_path() + "translations\\es.ini", cached_english);
+			cached_english = load_external_bundle(fs::get_self_path() + "ecm-r\\translations\\en.ini", cached_english);
+			cached_spanish = load_external_bundle(fs::get_self_path() + "ecm-r\\translations\\es.ini", cached_english);
 			bundles_loaded = true;
 		}
 

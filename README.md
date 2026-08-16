@@ -10,7 +10,7 @@ It also includes an in-game overlay for playback control and runtime hotkey rebi
 
 This fork is currently focused on **Need for Speed: Underground 2 (NFSU2)**.
 
-The maintained runtime for this fork is currently the **Win-x86** build, deployed as `ecm-r.x86.asi` with `ecm-r.x86.ini`, `bass.dll`, and the `translations` folder beside it.
+The maintained runtime for this fork is currently the **Win-x86** build, deployed as `ecm-r.x86.asi` with `ecm-r.x86.ini`, `bass.dll`, and the `ecm-r/translations` folder beside it.
 
 ## Quick Start
 
@@ -20,7 +20,7 @@ The maintained runtime for this fork is currently the **Win-x86** build, deploye
    - `ecm-r.x86.asi`
    - `ecm-r.x86.ini` (ECM-R creates it automatically on first launch)
    - `bass.dll`
-   - `translations/en.ini` and `translations/es.ini`
+   - `ecm-r/translations/en.ini` and `ecm-r/translations/es.ini`
 4. Create a `Music` folder next to those runtime files and place your supported audio files inside.
 5. Launch the game, wait for the first startup music banner to finish, and then open the overlay with `F11`.
 
@@ -68,9 +68,10 @@ Game Folder/
     ecm-r.x86.asi
     ecm-r.x86.ini
     bass.dll
-    translations/
-      en.ini
-      es.ini
+    ecm-r/
+      translations/
+        en.ini
+        es.ini
     Music/
       Artist - Song 01.mp3
       Artist - Song 02.ogg
@@ -88,12 +89,12 @@ Before installing, ensure you have:
    - `ecm-r.x86.asi`
    - `ecm-r.x86.ini` (created automatically on first launch if missing)
    - `bass.dll`
-   - `translations/en.ini` and `translations/es.ini`
+   - `ecm-r/translations/en.ini` and `ecm-r/translations/es.ini`
 3. Created a `Music` folder in the target location with your supported audio files
 
 ### Installation Methods
 
-**Mr. Modman** or **ASI Loader**: Extract the release `scripts` contents into your game's directory. Ensure the final deployed `scripts` folder contains `ecm-r.x86.asi`, `bass.dll`, `translations/en.ini`, `translations/es.ini`, and your `Music` folder. ECM-R will create `ecm-r.x86.ini` automatically if it's missing.
+**Mr. Modman** or **ASI Loader**: Extract the release `scripts` contents into your game's directory. Ensure the final deployed `scripts` folder contains `ecm-r.x86.asi`, `bass.dll`, `ecm-r/translations/en.ini`, `ecm-r/translations/es.ini`, and your `Music` folder. ECM-R will create `ecm-r.x86.ini` automatically if it's missing.
 
 ## Supported Audio Formats
 
@@ -142,7 +143,7 @@ MP1 is a legacy compatibility format and is not a primary QA target. Prefer MP2,
 - Creates `ecm-r.x86.ini` automatically on first launch
 - Saves runtime changes for shuffle, repeat, in-game movie muting, volume, and hotkey settings back to the configuration file
 - Migrates older configurations by using legacy `volume` as the fallback source for context-specific volume settings
-- Persists and repairs `[config] language = en` or `es`, loading editable UTF-8 bundles from `translations/en.ini` and `translations/es.ini`
+- Persists and repairs `[config] language = en` or `es`, loading editable UTF-8 bundles from `ecm-r/translations/en.ini` and `ecm-r/translations/es.ini`
 - Migrates obsolete movie-muting entries to `[config] ingame_movie_muting = true`; an existing canonical value remains unchanged
 - Supports configurable playlist location, key bindings, loading-screen music handling, and per-track routing rules
 - Automatically adds newly discovered music files to `[trax]` with `ALL` routing and removes orphaned entries for deleted files on each startup

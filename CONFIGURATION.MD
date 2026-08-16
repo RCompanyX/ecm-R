@@ -53,9 +53,10 @@ Game Folder/
     ecm-r.x86.asi
     ecm-r.x86.ini
     bass.dll
-    translations/
-      en.ini
-      es.ini
+    ecm-r/
+      translations/
+        en.ini
+        es.ini
     Music/
       Artist - Song 01.mp3
       Artist - Song 02.ogg
@@ -114,7 +115,7 @@ Game Folder/
 - **Default:** `en`
 - **Accepted values:** `en` (English) or `es` (neutral Spanish).
 - **Behavior:** The active language changes on the next overlay frame and is saved immediately. Invalid or missing values are repaired to `en`.
-- **Translation files:** Editable UTF-8 `translations/en.ini` and `translations/es.ini` files are loaded next to the plugin at startup. Missing or invalid entries safely fall back to English and compiled defaults. Track metadata, filenames, paths, INI keys, and game chyrons are never translated.
+- **Translation files:** Editable UTF-8 `ecm-r/translations/en.ini` and `ecm-r/translations/es.ini` files are loaded from the plugin-relative namespace at startup. Missing or invalid entries safely fall back to English and compiled defaults. Track metadata, filenames, paths, INI keys, and game chyrons are never translated.
 
 ### Accepted Boolean Formats
 All `[config]` boolean parameters accept:
