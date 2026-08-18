@@ -6,6 +6,9 @@ This changelog tracks the tagged releases recorded in this repository.
 
 ## [Unreleased]
 
+### Added
+- Added an optional manually triggered GitHub Actions workflow (`debug.yml`) that builds `Debug | Win-x86`, verifies the DLL, ASI, PDB, and translation bundles, and uploads the debug artifact.
+
 ### Changed
 - Promoted the existing in-game movie muting option from Experimental to normal validated functionality, exposed it in `Actions`, and enabled it by default for fresh configurations and migrations from obsolete placements.
 - Moved canonical movie-muting persistence to `[config]`, hid the empty Experimental menu container from the current UI while retaining its entry point for future use, and updated configuration migration to respect only an existing canonical value while defaulting legacy placements to `true`.

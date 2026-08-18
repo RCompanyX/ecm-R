@@ -1,0 +1,43 @@
+name: Debug Build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Generate solution
+        shell: cmd
+        run: .\generate.bat
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Build
+        run: msbuild build\ECM-R.sln /t:Overlay /p:Configuration=Debug /p:Platform=Win-x86 /m
+
+      - name: Verify output
+        shell: cmd
+        run: |
+          if not exist "build\bin\Debug-Win-x86\x86\ecm-r.x86.dll" exit /b 1
+          if not exist "build\bin\Debug-Win-x86\x86\ecm-r.x86.asi" exit /b 1
+          if not exist "build\bin\Debug-Win-x86\x86\ecm-r.x86.pdb" exit /b 1
+          if not exist "build\bin\Debug-Win-x86\x86\ecm-r\translations\en.ini" exit /b 1
+          if not exist "build\bin\Debug-Win-x86\x86\ecm-r\translations\es.ini" exit /b 1
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ecm-r-debug-build
+          path: |
+            build/bin/Debug-Win-x86/x86/ecm-r.x86.dll
+            build/bin/Debug-Win-x86/x86/ecm-r.x86.asi
+            build/bin/Debug-Win-x86/x86/ecm-r.x86.pdb
+            build/bin/Debug-Win-x86/x86/ecm-r/translations/
