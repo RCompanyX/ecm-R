@@ -10,6 +10,7 @@ This changelog tracks the tagged releases recorded in this repository.
 - Added English and neutral-Spanish localization for the overlay, hotkey feedback, release notices, and static BASS startup errors, with next-frame runtime switching through the new Language menu.
 - Added cached editable UTF-8 `ecm-r/translations/en.ini` and `ecm-r/translations/es.ini` bundles with placeholder validation and safe English/compiled-default fallback.
 - Added persisted `[config] language = en|es` support with invalid and missing-value repair, plus post-build and CI packaging checks for both translation files.
+- Added an optional manually triggered GitHub Actions workflow (`debug.yml`) that builds `Debug | Win-x86`, verifies the DLL, ASI, and PDB, and uploads the debug artifact.
 
 ### Changed
 - Namespaced the editable translation bundles under `ecm-r/translations/` to avoid collisions with other mods.
