@@ -29,8 +29,6 @@ jobs:
           if not exist "build\bin\Debug-Win-x86\x86\ecm-r.x86.dll" exit /b 1
           if not exist "build\bin\Debug-Win-x86\x86\ecm-r.x86.asi" exit /b 1
           if not exist "build\bin\Debug-Win-x86\x86\ecm-r.x86.pdb" exit /b 1
-          if not exist "build\bin\Debug-Win-x86\x86\ecm-r\translations\en.ini" exit /b 1
-          if not exist "build\bin\Debug-Win-x86\x86\ecm-r\translations\es.ini" exit /b 1
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -40,4 +38,3 @@ jobs:
             build/bin/Debug-Win-x86/x86/ecm-r.x86.dll
             build/bin/Debug-Win-x86/x86/ecm-r.x86.asi
             build/bin/Debug-Win-x86/x86/ecm-r.x86.pdb
-            build/bin/Debug-Win-x86/x86/ecm-r/translations/
