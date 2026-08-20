@@ -12,6 +12,7 @@ The generated workspace may expose additional platforms such as `Win-x64`, but r
 ## CI Builds (GitHub Actions)
 
 Every push and pull request automatically compiles `Release | Win-x86` via GitHub Actions.
+A manually triggered `Debug | Win-x86` workflow is also available; it verifies and uploads the DLL, ASI, and PDB as the `ecm-r-debug-build` artifact.
 Pre-built artifacts are available without a local Windows toolchain:
 
 1. Go to the [Actions](https://github.com/RCompanyX/ecm-r/actions) tab.

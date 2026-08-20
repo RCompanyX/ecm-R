@@ -6,6 +6,8 @@ This changelog tracks the tagged releases recorded in this repository.
 
 ## [Unreleased]
 
+## [v0.5.15-alpha] - 2026-08-20
+
 ### Added
 - Added English and neutral-Spanish localization for the overlay, hotkey feedback, release notices, and static BASS startup errors, with next-frame runtime switching through the new Language menu.
 - Added cached editable UTF-8 `ecm-r/translations/en.ini` and `ecm-r/translations/es.ini` bundles with placeholder validation and safe English/compiled-default fallback.
@@ -271,3 +273,4 @@ This changelog tracks the tagged releases recorded in this repository.
 [v0.5.11-alpha]: https://github.com/RCompanyX/ecm-R/releases/tag/v0.5.11-alpha
 [v0.5.13-alpha]: https://github.com/RCompanyX/ecm-R/releases/tag/v0.5.13-alpha
 [v0.5.14-alpha]: https://github.com/RCompanyX/ecm-R/releases/tag/v0.5.14-alpha
+[v0.5.15-alpha]: https://github.com/RCompanyX/ecm-R/releases/tag/v0.5.15-alpha
