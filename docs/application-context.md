@@ -116,7 +116,7 @@ Key deployment constraints:
 
 - `ecm-r.x86.asi` is the loader-facing runtime artifact.
 - `ecm-r.x86.ini` is created automatically if missing.
-- `bass.dll` is not bundled by the repository and must be obtained from the official BASS distribution. ECM-R has no static BASS SDK or SDK-header dependency; no BASS binaries are committed, and no unofficial redistribution is permitted.
+- `bass.dll` is not bundled by the repository and must be obtained from the official BASS distribution. ECM-R has no static BASS SDK or SDK-header dependency; no BASS binaries are committed, and third-party redistributions are not accepted.
 - ECM-R loads `bass.dll` dynamically from the same directory as the plugin module.
 - The active build target for NFSU2 is `Release | Win-x86`.
 - Editable overlay translations are deployed as UTF-8 `ecm-r/translations/en.ini` and `ecm-r/translations/es.ini` beside the plugin.
