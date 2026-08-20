@@ -2,6 +2,7 @@
 
 #include "d3d9_impl.h"
 #include <d3d9.h>
+#include "logger/logger.hpp"
 
 typedef long(__stdcall* Reset)(LPDIRECT3DDEVICE9, D3DPRESENT_PARAMETERS*);
 static Reset oReset = NULL;
@@ -32,6 +33,7 @@ long __stdcall hkEndScene(LPDIRECT3DDEVICE9 pDevice)
 		HWND hwnd = params.hFocusWindow;
 
 		global::hwnd = hwnd;
+		logger::log_info("D3D9 first-frame runtime initialization");
 		audio::init();
 		input::init_overlay();
 
@@ -55,7 +57,12 @@ void impl::d3d9::init()
 {
 	if (kiero::bind(16, (void**)&oReset, hkReset) != kiero::Status::Success || kiero::bind(42, (void**)&oEndScene, hkEndScene) != kiero::Status::Success)
 	{
+		logger::log_error("Failed to bind DirectX 9 hooks");
 		MessageBoxA(nullptr, "Failed to hook DirectX 9!", "ECM", 0);
+	}
+	else
+	{
+		logger::log_debug("DirectX 9 hooks bound");
 	}
 }
 

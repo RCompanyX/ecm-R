@@ -2,6 +2,7 @@
 
 #include "d3d10_impl.h"
 #include <d3d10.h>
+#include "logger/logger.hpp"
 
 typedef long(__stdcall* Present)(IDXGISwapChain*, UINT, UINT);
 static Present oPresent = NULL;
@@ -23,6 +24,7 @@ long __stdcall hkPresent10(IDXGISwapChain* pSwapChain, UINT SyncInterval, UINT F
 		HWND hwnd = desc.OutputWindow;
 
 		global::hwnd = hwnd;
+		logger::log_info("D3D10 first-frame runtime initialization");
 		audio::init();
 		input::init_overlay();
 
@@ -46,7 +48,12 @@ void impl::d3d10::init()
 {
 	if (kiero::bind(8, (void**)&oPresent, hkPresent10) != kiero::Status::Success)
 	{
+		logger::log_error("Failed to bind DirectX 10 hook");
 		MessageBoxA(nullptr, "Failed to hook DirectX 10!", "ECM", 0);
+	}
+	else
+	{
+		logger::log_debug("DirectX 10 hook bound");
 	}
 }
 
