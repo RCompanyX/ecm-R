@@ -6,6 +6,9 @@ This changelog tracks the tagged releases recorded in this repository.
 
 ## [Unreleased]
 
+### Added
+- Added a dedicated `ECM-R-Win32` artifact for direct pushes to `main`, including `README.md` and `LICENSE` alongside the ASI and translations while preserving `ecm-r-build` for other CI runs.
+
 ## [v0.5.15-alpha] - 2026-08-20
 
 ### Added
