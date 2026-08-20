@@ -29,6 +29,7 @@ jobs:
         run: |
           if not exist "build\bin\Release-Win-x86\x86\ecm-r.x86.dll" exit /b 1
           if not exist "build\bin\Release-Win-x86\x86\ecm-r.x86.asi" exit /b 1
+          if not exist "build\bin\Release-Win-x86\x86\ecm-r.x86.pdb" exit /b 1
           if not exist "build\bin\Release-Win-x86\x86\ecm-r\translations\en.ini" exit /b 1
           if not exist "build\bin\Release-Win-x86\x86\ecm-r\translations\es.ini" exit /b 1
 
@@ -39,3 +40,9 @@ jobs:
           path: |
             build/bin/Release-Win-x86/x86/ecm-r.x86.asi
             build/bin/Release-Win-x86/x86/ecm-r/translations/
+
+      - name: Upload exact Release symbols
+        uses: actions/upload-artifact@v4
+        with:
+          name: ecm-r-release-symbols
+          path: build/bin/Release-Win-x86/x86/ecm-r.x86.pdb
