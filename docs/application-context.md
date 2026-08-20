@@ -103,10 +103,12 @@ Game Folder/
     ecm-r.x86.asi
     ecm-r.x86.ini
     bass.dll
-    ecm-r/
-      translations/
-        en.ini
-        es.ini
+  ecm-r/
+    ecm-r.x86.log
+    ecm-r.x86.log.1  (optional backup)
+    translations/
+      en.ini
+      es.ini
     Music/
       Artist - Song 01.mp3
       Artist - Song 02.ogg
@@ -116,6 +118,7 @@ Key deployment constraints:
 
 - `ecm-r.x86.asi` is the loader-facing runtime artifact.
 - `ecm-r.x86.ini` is created automatically if missing.
+- `ecm-r/ecm-r.x86.log` is created alongside the translation bundles; its active size is capped at 2 MiB and rotation retains at most `ecm-r/ecm-r.x86.log.1`. The logger creates `ecm-r/` when missing, validates an existing path as a directory, and does not migrate older root-level logs.
 - `bass.dll` is not bundled by the repository and must be obtained from the official BASS distribution. ECM-R has no static BASS SDK or SDK-header dependency; no BASS binaries are committed, and third-party redistributions are not accepted.
 - ECM-R loads `bass.dll` dynamically from the same directory as the plugin module.
 - The active build target for NFSU2 is `Release | Win-x86`.
@@ -134,6 +137,7 @@ Key deployment constraints:
 | Overlay UI | ImGui menus, runtime controls, hotkeys UI, playlist listing, about dialog, release notice | `src/app/menus/menus.*` |
 | Settings and persistence | INI creation, migration, runtime saves, default hotkeys, `[trax]` normalization | `src/app/settings/settings.*` |
 | Localization | Startup-cached UTF-8 English/Spanish bundles, placeholder validation, runtime locale selection | `src/app/localization/localization.*`, `ecm-r/translations/*.ini` |
+| Diagnostics | Persistent module-relative log, level filtering, bounded rotation, console fallback | `src/utils/logger/logger.hpp` |
 | Build and packaging | Premake workspace, output naming, generated solution layout | `lua/windows.lua`, `generate.bat`, `BUILDING.md` |
 
 ## Runtime Lifecycle
@@ -149,9 +153,18 @@ The attach thread then:
 3. Redirects standard input and output to that console.
 4. Hides the console in non-debug builds.
 5. Forces `global::game = game_t::NFSU2`.
-6. Calls `init()`.
+6. Initializes the persistent logger at bootstrap `debug` level.
+7. Calls `init()`.
 
-Unexpected worker-thread failures are handled by `CustomUnhandledExceptionFilter`, which writes `ecm-r-YYYYMMDDHHMMSS.dmp` next to the plugin and uses `MessageBoxA` to report the path.
+Unexpected worker-thread failures are handled by `CustomUnhandledExceptionFilter`, which writes `ecm-r-YYYYMMDDHHMMSS.dmp` next to the plugin and uses `MessageBoxA` to report the path. The filter does not call the normal logger.
+
+### Persistent diagnostics
+
+`src/utils/logger/logger.hpp` keeps the public console logging API while adding a module-relative `ecm-r/ecm-r.x86.log` sink alongside the translation bundles. The logger starts before MinHook, memory patches, settings, and renderer selection, so bootstrap diagnostics use an unfiltered `debug` phase. After `[config]` is loaded, only `error`, `warning`, `info`, or `debug` entries at the persisted `log_level` are emitted; the default is `info`. Applying the level never closes, truncates, or recreates the active file.
+
+The active log is limited to 2 MiB. Before a record would exceed the limit, the logger flushes and closes the active file, removes `.1`, renames the active file to `.1`, opens a new active file with a session header, and writes the triggering record. There is no `.2`, timestamped log, directory scan, or retry loop. Oversized individual records are bounded with an explicit truncation marker. File failures disable only the file sink for the session and leave console diagnostics and runtime operation intact.
+
+Logs can contain module-relative paths, playlist filenames, and Windows/BASS error details; they should be reviewed before sharing. Older root-level logs are left untouched. `.dmp` files remain separate crash evidence beside the module and are never automatically cleaned or rotated. Release PDBs are generated and archived separately from user runtime packages.
 
 ### 2. Early runtime initialization in `init()`
 
@@ -526,7 +539,7 @@ The generated configuration contains these sections:
 - `[keys]`
 - `[trax]`
 
-`[config] language` accepts `en` or `es`, defaults to `en`, and invalid or missing values are repaired to `en`.
+`[config] language` accepts `en` or `es`, defaults to `en`, and invalid or missing values are repaired to `en`. `[config] log_level` accepts `error`, `warning`, `info`, or `debug`, defaults to `info` after bootstrap, and invalid or missing values are repaired to `info`.
 
 ### Persisted behavior
 
@@ -538,6 +551,7 @@ The settings layer persists:
 - loading-screen handling,
 - in-game movie muting,
 - overlay language,
+- diagnostic log level,
 - hotkey bindings,
 - per-track routing in `[trax]`.
 
@@ -550,6 +564,7 @@ The settings layer also repairs or migrates older configurations by:
 - defaulting missing movie-muting values to `true` and rewriting obsolete placements out of the INI,
 - adding missing config keys,
 - repairing missing or invalid `[config] language` values to `en`,
+- repairing missing, invalid, or non-canonical `[config] log_level` values to `info`,
 - restoring invalid or duplicate hotkey entries to safe defaults,
 - rewriting the config when version or structure drift is detected.
 
@@ -590,6 +605,7 @@ Expected output paths include:
 
 - `build/bin/Release-Win-x86/x86/ecm-r.x86.dll`
 - `build/bin/Release-Win-x86/x86/ecm-r.x86.asi`
+- `build/bin/Release-Win-x86/x86/ecm-r.x86.pdb` (archived separately from the runtime package for symbolization)
 - `build/bin/Release-Win-x86/x86/ecm-r/translations/en.ini`
 - `build/bin/Release-Win-x86/x86/ecm-r/translations/es.ini`
 
@@ -615,6 +631,7 @@ Use this file map when scoping work:
 - Chyron gating and package checks: `src/app/hook/hook.hpp`
 - Audio behavior and playlist flow: `src/app/audio/audio.cpp`
 - BASS dynamic loading boundary: `src/app/audio/bass_api.cpp`
+- Persistent diagnostics and rotation: `src/utils/logger/logger.hpp`
 - Playback metadata extraction: `src/app/audio/player.cpp`
 - Hotkey behavior and rebinding safety: `src/app/input/input.cpp`
 - Localization parsing and active bundle selection: `src/app/localization/localization.cpp`
