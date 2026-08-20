@@ -24,6 +24,8 @@ private:
 	static void main_menu_bar();
 	/// Renders playback controls and runtime toggles.
 	static void actions();
+	/// Renders the runtime language selector.
+	static void language_menu();
 	/// Placeholder for future experimental controls; currently hidden.
 	static void experimental();
 	/// Renders the hotkey rebinding panel and capture feedback.

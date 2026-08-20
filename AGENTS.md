@@ -11,7 +11,7 @@
 - INI: `ecm-r.x86.ini` (local, hardcoded in `settings::config_file`, `src/app/settings/settings.cpp`).
 - VERSION: `VERSION` macro in `src/app/stdafx.hpp` (e.g. `"v0.5.13-alpha"`). Source of truth for semver; bumped only by `ecmr-release`.
 - BASS: Load dynamic (`LoadLibraryA`/`GetProcAddress`). No bin commit, no header reference. Logic: `src/app/audio/bass_api.*`.
-- Deploy: `ecm-r.x86.asi`, `ecm-r.x86.ini`, `bass.dll`.
+- Deploy: `ecm-r.x86.asi`, `ecm-r.x86.ini`, `bass.dll`, and `ecm-r/translations/en.ini` plus `ecm-r/translations/es.ini`.
 
 ### 3. Quirks
 - Audio/ImGui Init: Hook frame 1 (e.g., `hkEndScene`), not `main.cpp`.

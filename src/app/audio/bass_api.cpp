@@ -1,5 +1,7 @@
 #include "bass_api.hpp"
 
+#include "global.hpp"
+#include "fs/fs.hpp"
 #include "logger/logger.hpp"
 
 namespace bass_api
@@ -36,13 +38,13 @@ namespace bass_api
 
         std::string format_system_error(DWORD error)
         {
-            LPSTR buffer = nullptr;
-            const DWORD length = FormatMessageA(
+            LPWSTR buffer = nullptr;
+            const DWORD length = FormatMessageW(
                 FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
                 nullptr,
                 error,
                 MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-                reinterpret_cast<LPSTR>(&buffer),
+                reinterpret_cast<LPWSTR>(&buffer),
                 0,
                 nullptr);
 
@@ -51,14 +53,22 @@ namespace bass_api
                 return logger::va("Windows error %lu", error);
             }
 
-            std::string message(buffer, length);
+            std::wstring wide_message(buffer, length);
             LocalFree(buffer);
 
-            while (!message.empty() && (message.back() == '\r' || message.back() == '\n'))
+            while (!wide_message.empty() && (wide_message.back() == L'\r' || wide_message.back() == L'\n'))
             {
-                message.pop_back();
+                wide_message.pop_back();
             }
 
+            const int utf8_length = WideCharToMultiByte(CP_UTF8, 0, wide_message.data(), static_cast<int>(wide_message.size()), nullptr, 0, nullptr, nullptr);
+            if (utf8_length <= 0)
+            {
+                return logger::va("Windows error %lu", error);
+            }
+
+            std::string message(static_cast<std::size_t>(utf8_length), '\0');
+            WideCharToMultiByte(CP_UTF8, 0, wide_message.data(), static_cast<int>(wide_message.size()), message.data(), utf8_length, nullptr, nullptr);
             return logger::va("Windows error %lu: %s", error, message.c_str());
         }
 
@@ -127,7 +137,7 @@ namespace bass_api
         {
             const DWORD error = GetLastError();
             reset();
-            last_error_message = logger::va("%s\nTried path: %s", format_system_error(error).c_str(), bass_path.c_str());
+            last_error_message = logger::va("%s\nTried path: %s", format_system_error(error).c_str(), fs::ansi_to_utf8(bass_path).c_str());
             return false;
         }
 

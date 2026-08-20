@@ -43,7 +43,7 @@ public:
 	struct hotkey_binding
 	{
 		hotkey_action action;
-		const char* label;
+		const char* label_key;
 		const char* ini_key;
 		std::uint32_t default_key;
 		bool starts_unbound;

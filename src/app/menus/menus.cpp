@@ -7,6 +7,7 @@
 #include "input/input.hpp"
 #include "settings/settings.hpp"
 #include "audio/player.hpp"
+#include "localization/localization.hpp"
 
 #include <array>
 #include <atomic>
@@ -23,11 +24,12 @@ namespace
 	constexpr auto kIssuesUrl = "https://github.com/RCompanyX/ecm-R/issues";
 	constexpr wchar_t kLatestReleaseHost[] = L"api.github.com";
 	constexpr wchar_t kReleaseListPath[] = L"/repos/RCompanyX/ecm-R/releases?per_page=10";
-	constexpr char kStableVersionUpdateLabel[] = "New stable release available";
-	constexpr char kTestingVersionUpdateLabel[] = "New testing pre-release available";
 	input::hotkey_action hotkey_menu_feedback_action = input::hotkey_action::count;
 	std::string hotkey_menu_feedback_message;
 	bool hotkey_menu_feedback_is_error = false;
+	bool language_save_failed = false;
+	bool pending_language_change = false;
+	localization::language pending_language = localization::language::en;
 	enum class release_discovery_policy
 	{
 		latest_published,
@@ -324,13 +326,13 @@ namespace
 	// Returns the menu label shown when a newer release has been found.
 	const char* version_update_label(const github_release_info& release)
 	{
-		return release.prerelease ? kTestingVersionUpdateLabel : kStableVersionUpdateLabel;
+		return localization::text(release.prerelease ? "release.new_testing" : "release.new_stable");
 	}
 
 	// Returns the tooltip label that describes the discovered release channel.
 	const char* latest_release_tooltip_label(const github_release_info& release)
 	{
-		return release.prerelease ? "Latest testing pre-release" : "Latest stable release";
+		return localization::text(release.prerelease ? "release.latest_testing" : "release.latest_stable");
 	}
 
 	// Fetches the GitHub release list through WinHTTP loaded at runtime.
@@ -523,7 +525,7 @@ namespace
 		if (!settings::save_hotkey_binding(binding.ini_key, *binding.runtime_key))
 		{
 			input::assign_hotkey(binding.action, previous_key);
-			error_message = "Failed to save the hotkey in the INI file.";
+			error_message = localization::text("hotkeys.save_failed");
 			return false;
 		}
 
@@ -552,7 +554,7 @@ namespace
 			input::assign_hotkey(binding.action, previous_keys[index++]);
 		}
 
-		error_message = "Failed to save the default hotkeys in the INI file.";
+		error_message = localization::text("hotkeys.save_failed");
 		return false;
 	}
 
@@ -563,11 +565,42 @@ namespace
 		{
 			if (binding.action == action)
 			{
-				return binding.label;
+				return localization::text(binding.label_key);
 			}
 		}
 
 		return nullptr;
+	}
+
+	void request_language_change(const localization::language value)
+	{
+		if (value == localization::current())
+		{
+			return;
+		}
+
+		if (!settings::save_language(value))
+		{
+			language_save_failed = true;
+			return;
+		}
+
+		language_save_failed = false;
+		pending_language = value;
+		pending_language_change = true;
+	}
+
+	void apply_pending_language_change()
+	{
+		if (!pending_language_change)
+		{
+			return;
+		}
+
+		localization::set_language(pending_language);
+		input::clear_capture_feedback();
+		clear_hotkey_menu_feedback();
+		pending_language_change = false;
 	}
 
 	// Opens an external URL and reports a failure if Windows cannot launch it.
@@ -576,7 +609,7 @@ namespace
 		const auto result = reinterpret_cast<INT_PTR>(ShellExecuteA(nullptr, "open", url, nullptr, nullptr, SW_SHOWNORMAL));
 		if (result <= 32)
 		{
-			global::msg_box("ECM-R", std::string("Failed to open link:\n") + url);
+			global::msg_box("ECM-R", localization::format("about.open_failed", {{ "url", url }}));
 		}
 	}
 }
@@ -662,6 +695,8 @@ void menus::update()
 			ImGui::End();
 		}
 	}
+
+	apply_pending_language_change();
 }
 
 // Renders the main menu bar with playback status, update badge, and submenus.
@@ -672,16 +707,18 @@ void menus::main_menu_bar()
 		menus::actions();
 		menus::hotkeys();
 		menus::playlist();
+		menus::language_menu();
 
 		const std::string display_name = (audio::currently_playing.artist != "N/A")
 			? audio::currently_playing.artist + " - " + audio::currently_playing.title
 			: audio::currently_playing.title;
-		ImGui::Text("Listening: %s on %s", display_name.c_str(), audio::playlist_name.c_str());
+		const std::string listening = localization::format("status.listening", {{ "track", display_name }, { "playlist", audio::playlist_name }});
+		ImGui::Text("%s", listening.c_str());
 		ImGui::SameLine();
-		ImGui::Text("[%s]", audio::manual_paused ? "Paused" : "Playing");
+		ImGui::Text("[%s]", localization::text(audio::manual_paused ? "status.paused" : "status.playing"));
 
 		const ImGuiStyle& style = ImGui::GetStyle();
-		const float about_width = ImGui::CalcTextSize("About").x + style.FramePadding.x * 2.0f;
+		const float about_width = ImGui::CalcTextSize(localization::text("menu.about")).x + style.FramePadding.x * 2.0f;
 		const github_release_info latest_release = current_latest_release_info();
 		const bool show_version_update = has_newer_release_available() && !latest_release.tag_name.empty();
 		const float version_update_width = show_version_update ? ImGui::CalcTextSize(version_update_label(latest_release)).x + style.ItemSpacing.x : 0.0f;
@@ -705,6 +742,36 @@ void menus::main_menu_bar()
 	}
 }
 
+// Renders the language selector; the active bundle changes after this frame is drawn.
+void menus::language_menu()
+{
+	const std::string menu_label = std::string(localization::text("menu.language")) + "##language_menu";
+	if (!ImGui::BeginMenu(menu_label.c_str()))
+	{
+		return;
+	}
+
+	const localization::language active = localization::current();
+	const std::string english_label = std::string(localization::text("language.english")) + "##language_en";
+	if (ImGui::MenuItem(english_label.c_str(), nullptr, active == localization::language::en))
+	{
+		request_language_change(localization::language::en);
+	}
+
+	const std::string spanish_label = std::string(localization::text("language.spanish")) + "##language_es";
+	if (ImGui::MenuItem(spanish_label.c_str(), nullptr, active == localization::language::es))
+	{
+		request_language_change(localization::language::es);
+	}
+
+	if (language_save_failed)
+	{
+		ImGui::TextWrapped("%s", localization::text("language.save_failed"));
+	}
+
+	ImGui::EndMenu();
+}
+
 // Placeholder for future experimental controls; not invoked by the current menu bar.
 void menus::experimental()
 {
@@ -713,9 +780,10 @@ void menus::experimental()
 // Renders playback controls, context-aware volume sliders, and runtime status.
 void menus::actions()
 {
-	if (ImGui::BeginMenu("Actions"))
+	const std::string menu_label = std::string(localization::text("menu.actions")) + "##actions_menu";
+	if (ImGui::BeginMenu(menu_label.c_str()))
 	{
-		ImGui::Text("Audio Controls");
+		ImGui::Text("%s", localization::text("actions.audio_controls"));
         ImGui::PushItemWidth(120.0f);
 
 		auto save_volume_setting = [](const char* key, const int value)
@@ -723,9 +791,10 @@ void menus::actions()
 			settings::save_core_integer(key, value);
 		};
 
-		auto draw_volume_slider = [&](const char* label, std::int32_t& value, const char* config_key)
+		auto draw_volume_slider = [&](const char* text_key, std::int32_t& value, const char* config_key, const char* widget_id)
 		{
-			if (ImGui::SliderInt(label, &value, 0, 100))
+			const std::string label = std::string(localization::text(text_key)) + "##" + widget_id;
+			if (ImGui::SliderInt(label.c_str(), &value, 0, 100))
 			{
 				audio::apply_current_context_volume();
 				save_volume_setting(config_key, value);
@@ -736,63 +805,70 @@ void menus::actions()
 		const bool is_frontend_context = current_context == "Frontend";
 		const bool is_ingame_context = current_context == "In-game";
 
-       if (is_ingame_context)
+		if (is_ingame_context)
 		{
-			draw_volume_slider("Current Volume (In-game)", audio::ingame_volume, "ingame_volume");
-			draw_volume_slider("Frontend Volume", audio::frontend_volume, "frontend_volume");
+			draw_volume_slider("actions.current_volume_ingame", audio::ingame_volume, "ingame_volume", "current_ingame_volume");
+			draw_volume_slider("actions.frontend_volume", audio::frontend_volume, "frontend_volume", "frontend_volume");
 		}
 		else
 		{
-			const char* current_label = is_frontend_context ? "Current Volume (Frontend)" : "Frontend Volume";
-			draw_volume_slider(current_label, audio::frontend_volume, "frontend_volume");
-			draw_volume_slider("In-game Volume", audio::ingame_volume, "ingame_volume");
+			const char* current_label = is_frontend_context ? "actions.current_volume_frontend" : "actions.frontend_volume";
+			draw_volume_slider(current_label, audio::frontend_volume, "frontend_volume", "frontend_volume");
+			draw_volume_slider("actions.ingame_volume", audio::ingame_volume, "ingame_volume", "ingame_volume");
 		}
 
-		if (ImGui::Button(audio::manual_paused ? "Resume" : "Pause"))
+		const std::string pause_label = std::string(localization::text(audio::manual_paused ? "actions.resume" : "actions.pause")) + "##pause";
+		if (ImGui::Button(pause_label.c_str()))
 		{
 			audio::toggle_manual_pause();
 		}
 
 		ImGui::SameLine();
 
-        if (ImGui::Button("Previous"))
+		const std::string previous_label = std::string(localization::text("actions.previous")) + "##previous";
+		if (ImGui::Button(previous_label.c_str()))
 		{
 			audio::play_previous_song();
 		}
 
 		ImGui::SameLine();
 
-		if (ImGui::Button("Skip"))
+		const std::string skip_label = std::string(localization::text("actions.skip")) + "##skip";
+		if (ImGui::Button(skip_label.c_str()))
 		{
 			audio::skip_to_next_track();
 		}
 
 		bool shuffle_enabled = audio::shuffle_enabled;
-		if (ImGui::Checkbox("Shuffle", &shuffle_enabled))
+		const std::string shuffle_label = std::string(localization::text("actions.shuffle")) + "##shuffle";
+		if (ImGui::Checkbox(shuffle_label.c_str(), &shuffle_enabled))
 		{
 			audio::set_shuffle_enabled(shuffle_enabled);
 		}
 
 		bool repeat_enabled = audio::repeat_enabled;
-		if (ImGui::Checkbox("Repeat", &repeat_enabled))
+		const std::string repeat_label = std::string(localization::text("actions.repeat")) + "##repeat";
+		if (ImGui::Checkbox(repeat_label.c_str(), &repeat_enabled))
 		{
 			audio::set_repeat_enabled(repeat_enabled);
 		}
 
 		ImGui::Separator();
 		bool ingame_movie_muting = audio::ingame_movie_muting;
-		if (ImGui::Checkbox("In-Game Movie Muting", &ingame_movie_muting))
+		const std::string movie_muting_label = std::string(localization::text("actions.ingame_movie_muting")) + "##ingame_movie_muting";
+		if (ImGui::Checkbox(movie_muting_label.c_str(), &ingame_movie_muting))
 		{
 			audio::set_ingame_movie_muting(ingame_movie_muting);
 		}
 		ImGui::Separator();
 
-		ImGui::Text("Mode: %s", audio::shuffle_enabled ? "Random" : "Sequential");
-     ImGui::Text("Repeat: %s", audio::repeat_enabled ? "All" : "Off");
-      ImGui::Text("Manual Pause: %s", audio::manual_paused ? "On" : "Off");
-		ImGui::Text("Context: %s", audio::current_playlist_context());
-		ImGui::Text("Active Volume: %d", audio::current_context_volume());
-		ImGui::Text("Tracks: %d", audio::current_playlist_track_count());
+		ImGui::Text("%s", localization::format("actions.mode", {{ "mode", localization::text(audio::shuffle_enabled ? "actions.random" : "actions.sequential") }}).c_str());
+		ImGui::Text("%s", localization::format("actions.repeat_status", {{ "repeat", localization::text(audio::repeat_enabled ? "actions.all" : "actions.off") }}).c_str());
+		ImGui::Text("%s", localization::format("actions.manual_pause", {{ "state", localization::text(audio::manual_paused ? "actions.on" : "actions.off") }}).c_str());
+		const char* context_key = is_frontend_context ? "context.frontend" : is_ingame_context ? "context.ingame" : "context.all";
+		ImGui::Text("%s", localization::format("actions.context", {{ "context", localization::text(context_key) }}).c_str());
+		ImGui::Text("%s", localization::format("actions.active_volume", {{ "volume", std::to_string(audio::current_context_volume()) }}).c_str());
+		ImGui::Text("%s", localization::format("actions.tracks", {{ "count", std::to_string(audio::current_playlist_track_count()) }}).c_str());
 
 		ImGui::EndMenu();
 	}
@@ -801,7 +877,8 @@ void menus::actions()
 // Renders hotkey rebinding controls together with capture and persistence feedback.
 void menus::hotkeys()
 {
-	if (!ImGui::BeginMenu("Hotkeys"))
+	const std::string menu_label = std::string(localization::text("menu.hotkeys")) + "##hotkeys_menu";
+	if (!ImGui::BeginMenu(menu_label.c_str()))
 	{
 		return;
 	}
@@ -818,16 +895,16 @@ void menus::hotkeys()
 	ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + 420.0f);
 	if (audio::are_hotkeys_locked())
 	{
-		ImGui::TextWrapped("ECM-R hotkeys stay locked until the first startup chyron has appeared and disappeared once.");
+		ImGui::TextWrapped("%s", localization::text("hotkeys.locked"));
 	}
 	else
 	{
-		ImGui::TextWrapped("ECM-R hotkeys are ready. Supported keys: %s.", input::supported_key_help());
+		ImGui::TextWrapped("%s", localization::format("hotkeys.ready", {{ "keys", input::supported_key_help() }}).c_str());
 	}
-	ImGui::TextWrapped("While capture is active, ECM-R suspends hotkey execution so the candidate key does not trigger playback, overlay, shuffle, or repeat actions.");
+	ImGui::TextWrapped("%s", localization::text("hotkeys.capture_suspended"));
 	if (capture_label)
 	{
-		ImGui::TextWrapped("Capturing binding for: %s", capture_label);
+		ImGui::TextWrapped("%s", localization::format("hotkeys.capturing", {{ "action", capture_label }}).c_str());
 	}
 	ImGui::PopTextWrapPos();
 	ImGui::Spacing();
@@ -841,21 +918,23 @@ void menus::hotkeys()
 		const bool show_menu_feedback = hotkey_menu_feedback_action == binding.action && !hotkey_menu_feedback_message.empty();
 
 		ImGui::Separator();
-		ImGui::Text("%s", binding.label);
+		ImGui::Text("%s", localization::text(binding.label_key));
 		ImGui::SameLine(230.0f);
 		ImGui::Text("%s", current_key.c_str());
 
 		if (capturing_this)
 		{
-			ImGui::TextWrapped("Press a supported key to bind this action.");
-			if (ImGui::Button("Cancel"))
+			ImGui::TextWrapped("%s", localization::text("hotkeys.press_supported"));
+			const std::string cancel_label = std::string(localization::text("hotkeys.cancel")) + "##cancel_capture";
+			if (ImGui::Button(cancel_label.c_str()))
 			{
 				input::cancel_hotkey_capture();
 			}
 		}
 		else if (!capture_active)
 		{
-			if (ImGui::Button("Rebind"))
+			const std::string rebind_label = std::string(localization::text("hotkeys.rebind")) + "##rebind";
+			if (ImGui::Button(rebind_label.c_str()))
 			{
 				clear_hotkey_menu_feedback();
 				input::begin_hotkey_capture(binding.action);
@@ -864,13 +943,14 @@ void menus::hotkeys()
 			if (binding.action != input::hotkey_action::toggle_overlay)
 			{
 				ImGui::SameLine();
-				if (ImGui::Button("Clear"))
+				const std::string clear_label = std::string(localization::text("hotkeys.clear")) + "##clear";
+				if (ImGui::Button(clear_label.c_str()))
 				{
 					std::string error_message;
 					input::clear_capture_feedback();
 					if (apply_hotkey_change(binding, input::unbound_key, error_message))
 					{
-						set_hotkey_menu_feedback(binding.action, "Binding cleared.", false);
+						set_hotkey_menu_feedback(binding.action, localization::text("hotkeys.binding_cleared"), false);
 					}
 					else
 					{
@@ -880,13 +960,14 @@ void menus::hotkeys()
 			}
 
 			ImGui::SameLine();
-			if (ImGui::Button("Reset"))
+			const std::string reset_label = std::string(localization::text("hotkeys.reset")) + "##reset";
+			if (ImGui::Button(reset_label.c_str()))
 			{
 				std::string error_message;
 				input::clear_capture_feedback();
 				if (apply_hotkey_change(binding, binding.default_key, error_message))
 				{
-					set_hotkey_menu_feedback(binding.action, std::string("Reset to ") + input::key_to_string(binding.default_key) + ".", false);
+					set_hotkey_menu_feedback(binding.action, localization::format("hotkeys.reset_to", {{ "key", input::key_to_string(binding.default_key) }}), false);
 				}
 				else
 				{
@@ -896,12 +977,12 @@ void menus::hotkeys()
 		}
 		else
 		{
-			ImGui::TextDisabled("Capture in progress...");
+			ImGui::TextDisabled("%s", localization::text("hotkeys.capture_progress"));
 		}
 
 		if (binding.action == input::hotkey_action::toggle_overlay && *binding.runtime_key == input::unbound_key)
 		{
-			ImGui::TextColored(error_color, "Overlay is currently unbound. Rebind it before closing this menu.");
+			ImGui::TextColored(error_color, "%s", localization::text("hotkeys.overlay_unbound"));
 		}
 
 		if (show_capture_feedback)
@@ -919,13 +1000,14 @@ void menus::hotkeys()
 	ImGui::Separator();
 	if (!capture_active)
 	{
-		if (ImGui::Button("Reset All"))
+		const std::string reset_all_label = std::string(localization::text("hotkeys.reset_all")) + "##reset_all";
+		if (ImGui::Button(reset_all_label.c_str()))
 		{
 			std::string error_message;
 			input::clear_capture_feedback();
 			if (reset_all_hotkeys_with_persistence(error_message))
 			{
-				set_hotkey_menu_feedback(input::hotkey_action::count, "All hotkeys reset to their defaults.", false);
+				set_hotkey_menu_feedback(input::hotkey_action::count, localization::text("hotkeys.all_reset"), false);
 			}
 			else
 			{
@@ -935,11 +1017,11 @@ void menus::hotkeys()
 	}
 	else
 	{
-		ImGui::TextDisabled("Finish or cancel the active capture before resetting all bindings.");
+		ImGui::TextDisabled("%s", localization::text("hotkeys.finish_capture"));
 	}
 
 	ImGui::SameLine();
-	ImGui::TextUnformatted("Shuffle and Repeat start as None by default.");
+	ImGui::TextUnformatted(localization::text("hotkeys.shuffle_repeat_none"));
 
 	if (hotkey_menu_feedback_action == input::hotkey_action::count && !hotkey_menu_feedback_message.empty())
 	{
@@ -953,27 +1035,30 @@ void menus::hotkeys()
 void menus::about()
 {
   ImGui::SetNextWindowSizeConstraints(ImVec2(220.0f, 0.0f), ImVec2(360.0f, FLT_MAX));
-	if (ImGui::BeginMenu("About"))
+	const std::string menu_label = std::string(localization::text("menu.about")) + "##about_menu";
+	if (ImGui::BeginMenu(menu_label.c_str()))
 	{
        ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + 320.0f);
-		ImGui::Text("ECM-R - External Custom Music Reloaded");
-		ImGui::Text("Version: %s", VERSION);
+		ImGui::Text("%s", localization::text("about.title"));
+		ImGui::Text("%s", localization::format("about.version", {{ "version", VERSION }}).c_str());
 		ImGui::Separator();
-		ImGui::TextWrapped("Fork of the original ECM (External Custom Music) project.");
-		ImGui::BulletText("Original author: BttrDrgn");
-		ImGui::BulletText("Current fork maintainer: RCompanyX");
+		ImGui::TextWrapped("%s", localization::text("about.fork"));
+		ImGui::BulletText("%s", localization::text("about.original_author"));
+		ImGui::BulletText("%s", localization::text("about.maintainer"));
 		ImGui::Spacing();
-		ImGui::TextWrapped("Report bugs, request features, or share ideas through GitHub Issues.");
+		ImGui::TextWrapped("%s", localization::text("about.support"));
 		ImGui::PopTextWrapPos();
 
-		if (ImGui::Button("Repository"))
+		const std::string repository_label = std::string(localization::text("about.repository")) + "##repository";
+		if (ImGui::Button(repository_label.c_str()))
 		{
 			open_external_link(kRepositoryUrl);
 		}
 
 		ImGui::SameLine();
 
-		if (ImGui::Button("Issues"))
+		const std::string issues_label = std::string(localization::text("about.issues")) + "##issues";
+		if (ImGui::Button(issues_label.c_str()))
 		{
 			open_external_link(kIssuesUrl);
 		}
@@ -985,7 +1070,8 @@ void menus::about()
 // Renders the discovered playlist as a simple track list.
 void menus::playlist()
 {
-	if (ImGui::BeginMenu("Playlist"))
+	const std::string menu_label = std::string(localization::text("menu.playlist")) + "##playlist_menu";
+	if (ImGui::BeginMenu(menu_label.c_str()))
 	{
 		audio::resolve_playlist_metadata();
 		for (int i = 0; i < audio::playlist_files.size(); ++i)
@@ -1027,6 +1113,7 @@ void menus::build_font(ImGuiIO& io)
 
 	if (fs::exists(font))
 	{
+		// Noto Sans plus ImGui's Cyrillic range includes Latin-1 (áéíóúñ¿¡); emoji and Japanese remain merged below.
 		io.Fonts->AddFontFromFileTTF(&font[0], 18.0f, nullptr, io.Fonts->GetGlyphRangesCyrillic());
 
 		static ImFontConfig cfg;

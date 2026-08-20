@@ -17,7 +17,7 @@ Pre-built artifacts are available without a local Windows toolchain:
 1. Go to the [Actions](https://github.com/RCompanyX/ecm-r/actions) tab.
 2. Open the latest successful workflow run.
 3. Download the `ecm-r-build` artifact (ZIP file).
-4. Extract `ecm-r.x86.asi` into your game's `scripts` folder alongside `ecm-r.x86.ini` and `bass.dll`.
+4. Extract `ecm-r.x86.asi` and the `ecm-r/translations` folder into your game's `scripts` folder alongside `ecm-r.x86.ini` and `bass.dll`.
 
 This is useful for macOS/Linux users who cannot run the Visual Studio toolchain locally.
 
@@ -82,6 +82,8 @@ For the 32-bit release build, the generated files are placed in:
 
 - `build/bin/Release-Win-x86/x86/ecm-r.x86.dll`
 - `build/bin/Release-Win-x86/x86/ecm-r.x86.asi`
+- `build/bin/Release-Win-x86/x86/ecm-r/translations/en.ini`
+- `build/bin/Release-Win-x86/x86/ecm-r/translations/es.ini`
 
 ## 4. Runtime package
 
@@ -92,6 +94,7 @@ The final runtime package should include at least:
 - `ecm-r.x86.asi`
 - `ecm-r.x86.ini` (or allow ECM-R to create it on first launch)
 - `bass.dll` downloaded from the official BASS website
+- `ecm-r/translations/en.ini` and `ecm-r/translations/es.ini`
 
 This project loads the native BASS runtime dynamically, and `bass.dll` is required at runtime. Users should obtain it from the official BASS website:
 
@@ -119,6 +122,7 @@ For a typical setup, this means placing:
 - `ecm-r.x86.asi`
 - `ecm-r.x86.ini`
 - `bass.dll` obtained from the official BASS website
+- `ecm-r/translations/en.ini` and `ecm-r/translations/es.ini`
 
 inside the mod loader's expected `scripts` directory, with `bass.dll` placed next to the ECM-R runtime files. Use the `bass.dll` found in the root of the official Windows 32-bit BASS ZIP package from the `BASS` page on https://www.un4seen.com/.
 
@@ -131,6 +135,8 @@ On first launch, ECM-R also creates `ecm-r.x86.ini` automatically. The generated
 shuffle_enabled = true
 repeat_enabled = true
 stop_music_on_loading_screens = true
+ingame_movie_muting = true
+language = en
 ```
 
 These options control playlist playback behavior and loading screen handling:
@@ -138,6 +144,8 @@ These options control playlist playback behavior and loading screen handling:
 - `shuffle_enabled = true`: play valid tracks in shuffled order.
 - `repeat_enabled = true`: restart the valid track list after the last song finishes.
 - `stop_music_on_loading_screens = true`: stop custom music during loading screens.
+- `ingame_movie_muting = true`: mute custom music during supported in-game movie packages. This is a normal `[config]` option; the retained Experimental entry point is empty and unused.
+- `language = en`: use English overlay text; choose `es` for neutral Spanish. External bundles are loaded once at startup.
 
 The default values are enabled to preserve the expected ECM-R playback experience.
 

@@ -7,9 +7,14 @@ This changelog tracks the tagged releases recorded in this repository.
 ## [Unreleased]
 
 ### Added
+- Added English and neutral-Spanish localization for the overlay, hotkey feedback, release notices, and static BASS startup errors, with next-frame runtime switching through the new Language menu.
+- Added cached editable UTF-8 `ecm-r/translations/en.ini` and `ecm-r/translations/es.ini` bundles with placeholder validation and safe English/compiled-default fallback.
+- Added persisted `[config] language = en|es` support with invalid and missing-value repair, plus post-build and CI packaging checks for both translation files.
 - Added an optional manually triggered GitHub Actions workflow (`debug.yml`) that builds `Debug | Win-x86`, verifies the DLL, ASI, and PDB, and uploads the debug artifact.
 
 ### Changed
+- Namespaced the editable translation bundles under `ecm-r/translations/` to avoid collisions with other mods.
+- Kept ANSI-origin Windows/BASS path diagnostics UTF-8 encoded before localized startup message boxes are shown.
 - Promoted the existing in-game movie muting option from Experimental to normal validated functionality, exposed it in `Actions`, and enabled it by default for fresh configurations and migrations from obsolete placements.
 - Moved canonical movie-muting persistence to `[config]`, hid the empty Experimental menu container from the current UI while retaining its entry point for future use, and updated configuration migration to respect only an existing canonical value while defaulting legacy placements to `true`.
 

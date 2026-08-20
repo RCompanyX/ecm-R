@@ -7,6 +7,7 @@
 #include "fs/fs.hpp"
 #include "hook/hook.hpp"
 #include "settings/settings.hpp"
+#include "localization/localization.hpp"
 #include "defs.hpp"
 
 #include <algorithm>
@@ -488,30 +489,34 @@ void audio::init()
 
    if (!bass_api::load())
 	{
-		const std::string error_message = logger::va(
-			"Failed to load bass.dll.\n"
-			"%s\n"
-			"Make sure bass.dll is in the scripts folder next to ecm-r.x86.asi.\n"
-			"See the mod README for where to get bass.dll and where to place it.\n"
-			"ECM-R music will be disabled for this session.",
-			bass_api::last_error().c_str());
+		const std::string error_message = localization::format("bass.load_failed", {{ "detail", bass_api::last_error() }});
 		logger::log_error(logger::va("Failed to load bass.dll: %s", bass_api::last_error().c_str()));
-		global::msg_box("ECM-R BASS", error_message.c_str());
+		global::msg_box(localization::text("bass.title"), error_message);
 		global::shutdown = true;
 		return;
 	}
 
-	if (HIWORD(bass_api::get_version()) != bass_api::version)
+	const DWORD loaded_version = bass_api::get_version();
+	if (HIWORD(loaded_version) != bass_api::version)
 	{
-      global::msg_box("ECM-R BASS", "An incorrect version of BASS.DLL was loaded!");
+		const std::string error_message = localization::format("bass.wrong_version", {
+			{ "loaded", logger::va("0x%08lX", static_cast<unsigned long>(loaded_version)) },
+			{ "expected", logger::va("0x%08lX", static_cast<unsigned long>(bass_api::version)) },
+		});
+		logger::log_error(logger::va("Incorrect BASS version 0x%08lX (expected family 0x%08lX)",
+			static_cast<unsigned long>(loaded_version), static_cast<unsigned long>(bass_api::version)));
+		global::msg_box(localization::text("bass.title"), error_message);
 		global::shutdown = true;
-       bass_api::unload();
+		bass_api::unload();
 		return;
 	}
 
-  if (!bass_api::init_device(global::hwnd))
+   if (!bass_api::init_device(global::hwnd))
 	{
-      global::msg_box("ECM-R BASS", "Can't initialize device!\nNo audio will play for this session!");
+		const int bass_error = bass_api::last_call_error();
+		const std::string error_message = localization::format("bass.device_failed", {{ "error", std::to_string(bass_error) }});
+		logger::log_error(logger::va("BASS device initialization failed (error %d)", bass_error));
+		global::msg_box(localization::text("bass.title"), error_message);
        bass_api::unload();
 		global::shutdown = true;
 		return;
