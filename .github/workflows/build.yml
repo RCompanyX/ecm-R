@@ -33,7 +33,51 @@ jobs:
           if not exist "build\bin\Release-Win-x86\x86\ecm-r\translations\en.ini" exit /b 1
           if not exist "build\bin\Release-Win-x86\x86\ecm-r\translations\es.ini" exit /b 1
 
-      - name: Upload artifact
+      - name: Stage and verify main artifact
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $staging = Join-Path $env:RUNNER_TEMP 'ECM-R-Win32'
+
+          if (Test-Path -LiteralPath $staging) {
+            Remove-Item -LiteralPath $staging -Recurse -Force
+          }
+
+          New-Item -ItemType Directory -Path (Join-Path $staging 'ecm-r\translations') -Force | Out-Null
+          Copy-Item -LiteralPath 'build\bin\Release-Win-x86\x86\ecm-r.x86.asi' -Destination (Join-Path $staging 'ecm-r.x86.asi')
+          Copy-Item -LiteralPath 'build\bin\Release-Win-x86\x86\ecm-r\translations\en.ini' -Destination (Join-Path $staging 'ecm-r\translations\en.ini')
+          Copy-Item -LiteralPath 'build\bin\Release-Win-x86\x86\ecm-r\translations\es.ini' -Destination (Join-Path $staging 'ecm-r\translations\es.ini')
+          Copy-Item -LiteralPath 'README.md' -Destination (Join-Path $staging 'README.md')
+          Copy-Item -LiteralPath 'LICENSE' -Destination (Join-Path $staging 'LICENSE')
+
+          $expected = @(
+            'LICENSE'
+            'README.md'
+            'ecm-r.x86.asi'
+            'ecm-r/translations/en.ini'
+            'ecm-r/translations/es.ini'
+          )
+          $actual = @(
+            Get-ChildItem -LiteralPath $staging -Recurse -File |
+              ForEach-Object { $_.FullName.Substring($staging.Length + 1).Replace('\', '/') } |
+              Sort-Object
+          )
+          $difference = Compare-Object -ReferenceObject $expected -DifferenceObject $actual
+          if ($difference) {
+            $difference | Format-Table -AutoSize | Out-String | Write-Host
+            throw 'Main artifact staging layout is invalid.'
+          }
+
+      - name: Upload main artifact
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ECM-R-Win32
+          path: ${{ runner.temp }}/ECM-R-Win32
+
+      - name: Upload standard artifact
+        if: ${{ github.event_name != 'push' || github.ref != 'refs/heads/main' }}
         uses: actions/upload-artifact@v4
         with:
           name: ecm-r-build
