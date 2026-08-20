@@ -82,6 +82,7 @@ For the 32-bit release build, the generated files are placed in:
 
 - `build/bin/Release-Win-x86/x86/ecm-r.x86.dll`
 - `build/bin/Release-Win-x86/x86/ecm-r.x86.asi`
+- `build/bin/Release-Win-x86/x86/ecm-r.x86.pdb` (symbols; do not ship in the runtime package)
 - `build/bin/Release-Win-x86/x86/ecm-r/translations/en.ini`
 - `build/bin/Release-Win-x86/x86/ecm-r/translations/es.ini`
 
@@ -136,6 +137,7 @@ shuffle_enabled = true
 repeat_enabled = true
 stop_music_on_loading_screens = true
 ingame_movie_muting = true
+log_level = info
 language = en
 ```
 
@@ -146,8 +148,17 @@ These options control playlist playback behavior and loading screen handling:
 - `stop_music_on_loading_screens = true`: stop custom music during loading screens.
 - `ingame_movie_muting = true`: mute custom music during supported in-game movie packages. This is a normal `[config]` option; the retained Experimental entry point is empty and unused.
 - `language = en`: use English overlay text; choose `es` for neutral Spanish. External bundles are loaded once at startup.
+- `log_level = info`: persist the diagnostic filter. Accepted values are `error`, `warning`, `info`, and `debug`; bootstrap logging is temporarily unfiltered before the INI is loaded.
 
 The default values are enabled to preserve the expected ECM-R playback experience.
+
+## Diagnostics and symbols
+
+ECM-R creates `ecm-r/ecm-r.x86.log` alongside the translation bundles. The logger creates `ecm-r/` when missing, starts before MinHook, patches, settings, and renderer setup at bootstrap level `debug`, then applies `[config] log_level` without closing or recreating the file. The active log is limited to 2 MiB; rotation deletes the previous `.1`, renames the active file to `ecm-r.x86.log.1`, and starts a new active session. No `.2` or timestamped log files are created, and older root-level logs are not migrated. If file I/O fails, ECM-R continues with console diagnostics and does not shut down the game.
+
+Release builds emit `ecm-r.x86.pdb` beside the DLL. CI validates and archives that exact Release symbol file separately from the runtime artifact so it can be paired with matching crash dumps without adding the PDB to user deployment.
+
+Logs may contain module-relative paths, playlist filenames, and Windows/BASS error details; remove sensitive information before sharing. Crash dumps remain independent evidence: ECM-R does not automatically delete or rotate `.dmp` files.
 
 ## Troubleshooting
 
