@@ -13,6 +13,8 @@ It complements these existing documents:
 
 When this document and the code disagree, the code is authoritative. If that happens, update this document and `AGENTS.md` in the same change.
 
+`AGENTS.md` owns imperative operational rules; this document owns stable architecture and runtime behavior.
+
 ## Agent Entry Point
 
 Agents should read `AGENTS.md` first for workflow and rule instructions, then this document before any non-trivial ECM-R work to build a repository-level model of:
@@ -26,19 +28,26 @@ Agents should read `AGENTS.md` first for workflow and rule instructions, then th
 
 ### Agent Architecture
 
-ECM-R defines three specialized subagents for development workflows. They are defined in `.opencode/agents/` and managed through OpenCode.
+ECM-R defines four specialized subagents for development workflows. They are defined in `.opencode/agents/` and managed through OpenCode.
 
 | Agent | Role | Permissions | Key constraint |
 | --- | --- | --- | --- |
-| `ecmr-plan` | Planning | Read-only | Never edits files; delegates execution to `ecmr-dev` |
-| `ecmr-dev` | Development | Read-write | Creates `dev_...` branch only from `main` or when explicitly requested; builds `Release\|Win-x86` |
-| `ecmr-release` | Releases | Read-write | Manages version bumps, changelog, and release notes; never touches `docs/application-context.md` |
+| `ecmr-explore` | Feasibility | Read-only | Entry point; never edits files or runs builds; delegates viable ideas to `ecmr-plan` |
+| `ecmr-plan` | Planning | Read-only | Runs after feasibility assessment; never edits files; delegates execution to `ecmr-dev` |
+| `ecmr-dev` | Development | Read-write | Works from the active branch under `AGENTS.md` branch policy; builds `Release\|Win-x86` |
+| `ecmr-release` | Releases | Read-write | Manages version bumps, changelog, and release notes; hard-skip boundaries are defined in `AGENTS.md` |
+
+#### Idea explorer (`ecmr-explore`)
+
+`ecmr-explore` is the entry point for raw feature, bug, enhancement, or question requests. It researches the codebase, assesses feasibility and impact, and classifies each request as `VIABLE`, `NOT_VIABLE`, or `NEEDS_CLARIFICATION`. It is read-only, never edits files or runs builds, and delegates viable requests to `ecmr-plan` with the full feasibility assessment.
+
+The detailed explorer output template is defined in `.opencode/agents/ecmr-explore.md`.
 
 #### Planning agent (`ecmr-plan`)
 
-The entry point for non-trivial feature and bug work. Analyzes requests, assesses viability and risk, and produces an implementation plan. Plans cover: affected `GameFlowState` values, audio transitions, hook surfaces, overlay flows, and persisted settings (per AGENTS.md §8).
+After `ecmr-explore` classifies a request as `VIABLE`, `ecmr-plan` assesses implementation risk and produces the implementation plan. Plans cover: affected `GameFlowState` values, audio transitions, hook surfaces, overlay flows, and persisted settings (per AGENTS.md §8).
 
-Plans must identify the base/target branch and classify each CHANGELOG entry against it (per AGENTS.md §5 classification rule): features absent from the base branch → `### Added`, behavioral changes to in-progress features → `### Changed`, bugs of existing base-branch functionality → `### Fixed`.
+CHANGELOG entries belong under `## [Unreleased]`. Plans must compare each entry against the base/target branch, normally `main`, and include the classification rationale: a feature absent from the base is `### Added`; behavioral changes to that same in-progress feature are `### Changed`; `### Fixed` is reserved for regressions of existing base-branch behavior or clearly marked bugs introduced and fixed during the current work.
 
 After the plan is approved, `ecmr-plan` delegates execution to `ecmr-dev` via the Task tool with the full plan text.
 
@@ -50,6 +59,7 @@ Receives approved plans and implements them. Responsibilities:
 - Implements features, bug fixes, or documentation changes.
 - Builds the plugin targeting `Release | Win-x86`.
 - Keeps `CHANGELOG.md` `## [Unreleased]` entries updated as work progresses, classifying each entry against the base/target branch.
+- Commit, push, and GitHub write approval rules are defined in `AGENTS.md` §10.
 - Follows all rules in AGENTS.md and `docs/application-context.md`.
 
 #### Release agent (`ecmr-release`)
@@ -61,13 +71,11 @@ Prepares versioned releases. Workflow:
 - Generates release notes in `docs/releases/vX.Y.Z-alpha.md`.
 - Syncs user-facing documentation: `README.md`, `CONFIGURATION.MD`, `BUILDING.md`.
 
-The release agent has a strict boundary: it never modifies `docs/application-context.md` (owned by the dev agent), source files (except `stdafx.hpp`), or agent definitions under `.opencode/`.
+The release agent's hard-skip boundaries are defined in `AGENTS.md` §11; this document records its release workflow without duplicating those restrictions.
 
 #### Typical workflow
 
-1. **Planning phase:** `ecmr-plan` analyzes the request and produces a plan.
-2. **Implementation phase:** `ecmr-dev` executes the plan on the active working branch (only creates `dev_...` when starting from `main` or under explicit request).
-3. **Release phase:** `ecmr-release` packages the completed work into a versioned release.
+`ecmr-explore` (assess) → `ecmr-plan` (plan) → `ecmr-dev` (implement) → `ecmr-release` (release).
 
 See AGENTS.md for detailed agent instructions and rules.
 
@@ -108,7 +116,7 @@ Key deployment constraints:
 
 - `ecm-r.x86.asi` is the loader-facing runtime artifact.
 - `ecm-r.x86.ini` is created automatically if missing.
-- `bass.dll` is not bundled by the repository and must be obtained from the official BASS distribution. No BASS SDK binaries are committed, and no unofficial redistribution is permitted.
+- `bass.dll` is not bundled by the repository and must be obtained from the official BASS distribution. ECM-R has no static BASS SDK or SDK-header dependency; no BASS binaries are committed, and no unofficial redistribution is permitted.
 - ECM-R loads `bass.dll` dynamically from the same directory as the plugin module.
 - The active build target for NFSU2 is `Release | Win-x86`.
 - Editable overlay translations are deployed as UTF-8 `ecm-r/translations/en.ini` and `ecm-r/translations/es.ini` beside the plugin.
@@ -142,6 +150,8 @@ The attach thread then:
 4. Hides the console in non-debug builds.
 5. Forces `global::game = game_t::NFSU2`.
 6. Calls `init()`.
+
+Unexpected worker-thread failures are handled by `CustomUnhandledExceptionFilter`, which writes `ecm-r-YYYYMMDDHHMMSS.dmp` next to the plugin and uses `MessageBoxA` to report the path.
 
 ### 2. Early runtime initialization in `init()`
 
@@ -179,6 +189,7 @@ Two update loops matter:
 ## NFSU2 Game-State Model
 
 The repository treats `src/app/defs.hpp` as the source of truth for game flow state interpretation.
+The live `GameFlowState` value is read from memory address `0x008654A4` through `game_state`.
 
 Defined states:
 
@@ -229,6 +240,8 @@ The repository also treats state as part of UI safety for the in-game notificati
 
 In frontend-related states, the chyron also waits for frontend UI packages to be available.
 
+When a notification is suppressed, ECM-R hides/removes the chyron rather than rendering it with empty text.
+
 ## Audio and Playback Model
 
 ### Core goal
@@ -237,7 +250,7 @@ The audio subsystem replaces the audible gameplay music path with external files
 
 ### BASS loading model
 
-The repository has been migrated to manual dynamic loading of BASS.
+The repository uses a dynamic-only BASS boundary: `LoadLibraryA` loads `bass.dll` and `GetProcAddress` resolves its required exports. ECM-R has no static BASS SDK or SDK-header dependency, and no BASS binaries are committed.
 
 `bass_api::load()`:
 
@@ -247,13 +260,13 @@ The repository has been migrated to manual dynamic loading of BASS.
 - resolves the required BASS exports with `GetProcAddress`,
 - stores detailed Windows error text if loading fails.
 
-If `bass.dll` is missing, wrong, or incomplete:
+If BASS loading fails, device initialization fails, or the BASS version mismatches:
 
 - ECM-R shows a startup popup,
 - static popup templates follow the selected overlay language,
 - logs the error,
 - sets `global::shutdown = true`,
-- disables music for the session.
+- disables audio for the session.
 
 The current code validates the BASS version against the expected `0x204` major version family.
 
@@ -557,6 +570,12 @@ The authoritative build flow is:
 1. Run `generate.bat`.
 2. Open `build/ECM-R.sln`.
 3. Build `Release | Win-x86`.
+
+The exact command-line build is:
+
+`msbuild build\ECM-R.sln /t:Overlay /p:Configuration=Release /p:Platform=Win-x86 /m`
+
+The `VERSION` macro in `src/app/stdafx.hpp` is the semver source of truth and is bumped only by `ecmr-release`.
 
 The Premake workspace in `lua/windows.lua` defines the output naming and the post-build `.asi` copy step.
 
