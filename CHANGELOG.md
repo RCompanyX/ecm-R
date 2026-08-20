@@ -18,6 +18,9 @@ This changelog tracks the tagged releases recorded in this repository.
 - Promoted the existing in-game movie muting option from Experimental to normal validated functionality, exposed it in `Actions`, and enabled it by default for fresh configurations and migrations from obsolete placements.
 - Moved canonical movie-muting persistence to `[config]`, hid the empty Experimental menu container from the current UI while retaining its entry point for future use, and updated configuration migration to respect only an existing canonical value while defaulting legacy placements to `true`.
 
+### Documentation
+- Synchronized AGENTS.md and docs/application-context.md with the four-agent workflow, authoritative policy ownership, and current build/runtime facts.
+
 ## [v0.5.14-alpha] - 2026-08-12
 
 ### Added

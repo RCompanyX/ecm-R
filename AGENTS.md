@@ -90,7 +90,7 @@ ECM-R uses specialized subagents managed through OpenCode. Route work to the cor
 #### `@ecmr-dev` — Developer Agent
 - **Mode:** Read-write. Creates branches (conditionally, per §10 branch policy), edits code, runs builds.
 - **Purpose:** Execute approved plans from `@ecmr-plan`. Implement features, fix bugs, update docs.
-- **Rules:** Follows AGENTS.md (all 10 sections) + `docs/application-context.md`. Branch creation is conditional — only from `main` or when explicitly requested. Builds `Release | Win-x86`. Updates CHANGELOG.md `## [Unreleased]` as work progresses.
+- **Rules:** Follows AGENTS.md (all sections) + `docs/application-context.md`. Branch creation is conditional — only from `main` or when explicitly requested. Builds `Release | Win-x86`. Updates CHANGELOG.md `## [Unreleased]` as work progresses.
 - **Stack:** C++17, Premake, ImGui, BASS, MinHook.
 
 #### `@ecmr-release` — Release Agent
