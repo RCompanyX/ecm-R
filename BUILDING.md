@@ -17,8 +17,25 @@ Pre-built artifacts are available without a local Windows toolchain:
 
 1. Go to the [Actions](https://github.com/RCompanyX/ecm-r/actions) tab.
 2. Open the latest successful workflow run.
-3. Download the `ecm-r-build` artifact (ZIP file).
+3. Download the artifact for the run type:
+   - Direct push to `main`: `ECM-R-Win32.zip`.
+   - Other pushes, pull requests, and tag pushes: `ecm-r-build.zip`.
+   - Manual debug workflow: `ecm-r-debug-build.zip`.
 4. Extract `ecm-r.x86.asi` and the `ecm-r/translations` folder into your game's `scripts` folder alongside `ecm-r.x86.ini` and `bass.dll`.
+
+The direct-`main` package has this archive root:
+
+```text
+ecm-r.x86.asi
+ecm-r/
+  translations/
+    en.ini
+    es.ini
+README.md
+LICENSE
+```
+
+It intentionally excludes the build DLL, `ecm-r.x86.ini`, and `bass.dll`.
 
 This is useful for macOS/Linux users who cannot run the Visual Studio toolchain locally.
 

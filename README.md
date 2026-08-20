@@ -57,6 +57,7 @@ The in-game overlay also includes an **About** menu with the same fork attributi
 ## Building
 
 Build instructions are in [BUILDING.md](BUILDING.md). Pre-built CI artifacts are also available — see the [CI Builds section](BUILDING.md#ci-builds-github-actions) for details.
+Direct pushes to `main` publish `ECM-R-Win32.zip` with the ASI, translations, `README.md`, and `LICENSE`; other CI builds remain `ecm-r-build`.
 A manually triggered `Debug | Win-x86` workflow also provides a diagnostic artifact containing the DLL, ASI, and PDB.
 
 ## Runtime Layout
