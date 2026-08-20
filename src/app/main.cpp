@@ -137,6 +137,7 @@ void init()
 	switch (game)
 	{
 	case game_t::NFSU2:
+	{
 		logger::log_debug("Bootstrap stage: applying NFSU2 patches and hooks");
 		*(std::uint8_t*)(0x00534535) = 0xEB; //Prevent save from loading audio values
 
@@ -162,6 +163,7 @@ void init()
 		}
 		logger::log_info("NFSU2 memory patches installed");
 		break;
+	}
 	case game_t::UNIVERSAL:
 		std::thread([] {
 			while (!global::shutdown)
@@ -178,7 +180,7 @@ void init()
 	logger::log_debug("Settings initialization completed");
 
 	logger::log_debug("Bootstrap stage: selecting renderer hooks");
-	const kiero::Status kiero_status = kiero::init(kiero::RenderType::Auto);
+	const auto kiero_status = kiero::init(kiero::RenderType::Auto);
 	if (kiero_status == kiero::Status::Success)
 	{
 		const kiero::RenderType::Enum render_type = kiero::getRenderType();
