@@ -52,6 +52,7 @@ bool play_file(const char* file, int channel)
 	audio::currently_playing.where = audio::playlist_name;
 	audio::playlist_metadata[file] = audio::currently_playing;
 
+	logger::log_info(logger::va("Track started: '%s' (%s - %s)", file, artist.c_str(), title.c_str()));
 	audio::request_current_chyron();
 	return true;
 }

@@ -16,15 +16,25 @@ This changelog tracks the tagged releases recorded in this repository.
 - Added cached editable UTF-8 `ecm-r/translations/en.ini` and `ecm-r/translations/es.ini` bundles with placeholder validation and safe English/compiled-default fallback.
 - Added persisted `[config] language = en|es` support with invalid and missing-value repair, plus post-build and CI packaging checks for both translation files.
 - Added an optional manually triggered GitHub Actions workflow (`debug.yml`) that builds `Debug | Win-x86`, verifies the DLL, ASI, and PDB, and uploads the debug artifact.
+- Added persistent `ecm-r.x86.log` diagnostics with bootstrap `debug` capture, persisted `[config] log_level`, a fixed 2 MiB active limit, one `.1` backup, bounded record truncation, and console-only fallback when file logging fails.
+- Added bootstrap, MinHook, renderer, settings, BASS, playback, state-transition, pause, loading-screen, and mute-package diagnostics without per-tick, per-frame, or per-poll logging.
+- Added Release PDB generation and a separate CI symbol artifact for crash-dump analysis without adding symbols to the runtime package.
 
 ### Changed
+- Moved the persistent diagnostic log and rotating `.1` backup into the module-relative `ecm-r/` folder alongside translations; older root-level logs remain untouched.
 - Namespaced the editable translation bundles under `ecm-r/translations/` to avoid collisions with other mods.
 - Kept ANSI-origin Windows/BASS path diagnostics UTF-8 encoded before localized startup message boxes are shown.
 - Promoted the existing in-game movie muting option from Experimental to normal validated functionality, exposed it in `Actions`, and enabled it by default for fresh configurations and migrations from obsolete placements.
 - Moved canonical movie-muting persistence to `[config]`, hid the empty Experimental menu container from the current UI while retaining its entry point for future use, and updated configuration migration to respect only an existing canonical value while defaulting legacy placements to `true`.
 
 ### Documentation
+- Updated runtime layout and diagnostics references to document `ecm-r/ecm-r.x86.log`, automatic log-folder creation, and the unchanged module-relative `.dmp` location.
 - Synchronized AGENTS.md and docs/application-context.md with the four-agent workflow, authoritative policy ownership, and current build/runtime facts.
+- Documented the persistent log location, bootstrap phase, level filtering, 2 MiB rotation/retention contract, privacy considerations, separate crash-dump evidence, and Release symbol handling.
+
+### Fixed
+- Fixed the pre-existing logger formatting path to use bounded formatting and always call `va_end()`.
+- Fixed crash-dump path resolution to use the module directory, avoid overwriting an existing timestamped dump when possible, and report `CreateFile`/`MiniDumpWriteDump` failures accurately.
 
 ## [v0.5.14-alpha] - 2026-08-12
 

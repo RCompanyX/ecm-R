@@ -2,6 +2,7 @@
 
 #include "d3d11_impl.h"
 #include <d3d11.h>
+#include "logger/logger.hpp"
 
 typedef long(__stdcall* Present)(IDXGISwapChain*, UINT, UINT);
 static Present oPresent = NULL;
@@ -26,6 +27,7 @@ long __stdcall hkPresent11(IDXGISwapChain* pSwapChain, UINT SyncInterval, UINT F
 		HWND hwnd = desc.OutputWindow;
 
 		global::hwnd = hwnd;
+		logger::log_info("D3D11 first-frame runtime initialization");
 		audio::init();
 		input::init_overlay();
 
@@ -49,7 +51,12 @@ void impl::d3d11::init()
 {
 	if (kiero::bind(8, (void**)&oPresent, hkPresent11) != kiero::Status::Success)
 	{
+		logger::log_error("Failed to bind DirectX 11 hook");
 		MessageBoxA(nullptr, "Failed to hook DirectX 11!", "ECM", 0);
+	}
+	else
+	{
+		logger::log_debug("DirectX 11 hook bound");
 	}
 }
 

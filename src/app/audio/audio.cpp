@@ -19,6 +19,39 @@ namespace
 {
     constexpr int max_playback_history_entries = 50;
     std::unordered_set<std::string> unplayable_files;
+	bool has_logged_state = false;
+	bool has_logged_context = false;
+	std::int32_t last_logged_context = -1;
+	bool last_loading_stop_active = false;
+
+	const char* game_state_name(const GameFlowState state)
+	{
+		switch (state)
+		{
+		case GameFlowState::None:
+			return "None";
+		case GameFlowState::LoadingFrontend:
+			return "LoadingFrontend";
+		case GameFlowState::UnloadingFrontend:
+			return "UnloadingFrontend";
+		case GameFlowState::InFrontend:
+			return "InFrontend";
+		case GameFlowState::LoadingRegion:
+			return "LoadingRegion";
+		case GameFlowState::LoadingTrack:
+			return "LoadingTrack";
+		case GameFlowState::Racing:
+			return "Racing";
+		case GameFlowState::UnloadingTrack:
+			return "UnloadingTrack";
+		case GameFlowState::UnloadingRegion:
+			return "UnloadingRegion";
+		case GameFlowState::ExitDemoDisc:
+			return "ExitDemoDisc";
+		}
+
+		return "Unknown";
+	}
 
     struct stream_guard
     {
@@ -45,6 +78,19 @@ namespace
 		frontend,
 		ingame
 	};
+
+	const char* playlist_context_name(const playlist_context_t context)
+	{
+		switch (context)
+		{
+		case playlist_context_t::frontend:
+			return "Frontend";
+		case playlist_context_t::ingame:
+			return "In-game";
+		default:
+			return "All";
+		}
+	}
 
 	// Maps the current NFSU2 flow state to the playlist context used by ECM-R.
 	playlist_context_t get_playlist_context()
@@ -236,6 +282,13 @@ namespace
 		const bool was_paused = audio::paused;
 
 		audio::paused = audio::manual_paused || audio::game_paused;
+		if (was_paused != audio::paused)
+		{
+			logger::log_info(logger::va("Playback %s (manual=%s, game=%s)",
+				audio::paused ? "paused" : "resumed",
+				audio::manual_paused ? "true" : "false",
+				audio::game_paused ? "true" : "false"));
+		}
 
 		if (audio::chan[0] == 0)
 		{
@@ -485,6 +538,7 @@ namespace
 
 void audio::init()
 {
+	logger::log_info("Audio initialization started");
 	rebuild_mute_detection();
 
    if (!bass_api::load())
@@ -497,6 +551,7 @@ void audio::init()
 	}
 
 	const DWORD loaded_version = bass_api::get_version();
+	logger::log_info(logger::va("BASS loaded (version 0x%08lX)", static_cast<unsigned long>(loaded_version)));
 	if (HIWORD(loaded_version) != bass_api::version)
 	{
 		const std::string error_message = localization::format("bass.wrong_version", {
@@ -518,26 +573,51 @@ void audio::init()
 		logger::log_error(logger::va("BASS device initialization failed (error %d)", bass_error));
 		global::msg_box(localization::text("bass.title"), error_message);
        bass_api::unload();
-		global::shutdown = true;
+       global::shutdown = true;
 		return;
 	}
+	logger::log_info("BASS output device initialized");
 
 	probe_unplayable_files();
   audio::create_playlist_order();
+	logger::log_info(logger::va("Playlist ready: %zu discovered track(s), %zu playable track(s)", audio::playlist_files.size(), audio::playlist_order.size()));
 	audio::pause();
 	audio::update();
 }
 
 void audio::update()
 {
+	const GameFlowState previous_state = global::state;
 	global::state = game_state;
+	if (!has_logged_state || previous_state != global::state)
+	{
+		logger::log_info(logger::va("Game flow state: %s -> %s", game_state_name(previous_state), game_state_name(global::state)));
+		has_logged_state = true;
+	}
+
+	const auto current_context = get_playlist_context();
+	const std::int32_t current_context_value = static_cast<std::int32_t>(current_context);
+	if (!has_logged_context || last_logged_context != current_context_value)
+	{
+		logger::log_info(logger::va("Playlist context changed to %s", playlist_context_name(current_context)));
+		has_logged_context = true;
+		last_logged_context = current_context_value;
+	}
+
 	update_first_chyron_state();
 	if (audio::ingame_movie_muting)
 	{
 		audio::sync_game_pause_from_mute_packages();
 	}
 
-   if (audio::stop_music_on_loading_screens && is_loading_state())
+	const bool loading_stop_active = audio::stop_music_on_loading_screens && is_loading_state();
+	if (loading_stop_active != last_loading_stop_active)
+	{
+		logger::log_info(loading_stop_active ? "Loading-screen music stop active" : "Loading-screen music stop ended");
+		last_loading_stop_active = loading_stop_active;
+	}
+
+	if (loading_stop_active)
 	{
      if (audio::chan[0] != 0 || audio::playing)
 		{
@@ -563,7 +643,7 @@ void audio::update()
 		try_show_current_chyron();
 	}
 
-	const bool playlist_context_changed = audio::playlist_context != static_cast<std::int32_t>(get_playlist_context());
+	const bool playlist_context_changed = audio::playlist_context != current_context_value;
 	if (!audio::paused && !audio::playing && (!audio::playlist_ended || playlist_context_changed))
 	{
 		audio::play_next_song();
@@ -588,6 +668,10 @@ bool audio::play_file(const std::string& file, int channel)
 
 void audio::stop(int channel)
 {
+   if (audio::chan[channel] != 0 || audio::playing)
+	{
+		logger::log_info(logger::va("Track stopped: %s - %s", audio::currently_playing.artist.c_str(), audio::currently_playing.title.c_str()));
+	}
   audio::paused = audio::manual_paused || audio::game_paused;
 	audio::playing = false;
 
@@ -749,6 +833,8 @@ void audio::sync_game_pause_from_mute_packages()
 		return;
 	}
 
+	logger::log_info(should_pause ? "Mute-package state changed: pause required" : "Mute-package state changed: resume allowed");
+
 	if (should_pause)
 	{
 		audio::pause();
@@ -802,6 +888,7 @@ void audio::enumerate_playlist()
 	{
 		audio::playlist_files.emplace_back(file, "N/A");
 	}
+	logger::log_info(logger::va("Playlist enumerated: %zu file(s)", files.size()));
 }
 
 void audio::resolve_playlist_metadata()
@@ -905,6 +992,7 @@ void audio::set_ingame_movie_muting(const bool enabled)
 	}
 
 	audio::ingame_movie_muting = enabled;
+	logger::log_info(enabled ? "In-game movie muting enabled" : "In-game movie muting disabled");
 	rebuild_mute_detection();
 	settings::save_config_boolean("ingame_movie_muting", audio::ingame_movie_muting);
 	audio::sync_game_pause_from_mute_packages();
