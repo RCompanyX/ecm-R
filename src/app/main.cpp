@@ -100,7 +100,7 @@ void init()
 	switch (game)
 	{
 	case game_t::NFSU2:
-		*(std::uint8_t*)(0x00534535) = 0xEB; //Prevent save from loading audio values
+		//*(std::uint8_t*)(0x00534535) = 0xEB; //Prevent save from loading audio values
 
 		//Disable sliders in menu
 		hook::jump(0x004B6EDA, 0x004B6F92);
@@ -128,38 +128,39 @@ void init()
 
 	settings::init();
 
-	if (kiero::init(kiero::RenderType::Auto) == kiero::Status::Success)
+	logger::log_info("Initializing Kiero renderer hook...");
+
+	while (!global::shutdown)
 	{
-		switch (kiero::getRenderType())
+		if (kiero::init(kiero::RenderType::D3D9) == kiero::Status::Success)
 		{
-#if KIERO_INCLUDE_D3D9
-		case kiero::RenderType::D3D9:
+			logger::log_info("Kiero D3D9 initialized successfully.");
 			impl::d3d9::init();
 			break;
-#endif
+		}
 
-#if KIERO_INCLUDE_D3D10
-		case kiero::RenderType::D3D10:
+		if (kiero::init(kiero::RenderType::D3D10) == kiero::Status::Success)
+		{
+			logger::log_info("Kiero D3D10 initialized successfully.");
 			impl::d3d10::init();
 			break;
-#endif
+		}
 
-#if KIERO_INCLUDE_D3D11
-		case kiero::RenderType::D3D11:
+		if (kiero::init(kiero::RenderType::D3D11) == kiero::Status::Success)
+		{
+			logger::log_info("Kiero D3D11 initialized successfully.");
 			impl::d3d11::init();
 			break;
-#endif
+		}
 
-#if KIERO_INCLUDE_OPENGL
-		case kiero::RenderType::OpenGL:
+		if (kiero::init(kiero::RenderType::OpenGL) == kiero::Status::Success)
+		{
+			logger::log_info("Kiero OpenGL initialized successfully.");
 			impl::opengl3::init();
 			break;
-#endif
-
-		case kiero::RenderType::None:
-			FreeLibraryAndExitThread(global::self, 0);
-			break;
 		}
+
+		Sleep(250);
 	}
 
 	MH_EnableHook(MH_ALL_HOOKS);
