@@ -53,7 +53,8 @@ workspace "ECM-R"
 		defines "NDEBUG"
 		optimize "full"
 		runtime "release"
-		symbols "off"
+		-- Keep the exact Release PDB beside the DLL for crash-dump symbolization; packaging excludes it.
+		symbols "on"
 
 	filter "Debug"
 		defines {

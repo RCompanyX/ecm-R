@@ -21,6 +21,7 @@ shuffle_enabled = true
 repeat_enabled = true
 stop_music_on_loading_screens = true
 ingame_movie_muting = true
+log_level = info
 language = en
 
 [keys]
@@ -54,6 +55,8 @@ Game Folder/
     ecm-r.x86.ini
     bass.dll
     ecm-r/
+      ecm-r.x86.log
+      ecm-r.x86.log.1  (optional backup)
       translations/
         en.ini
         es.ini
@@ -116,6 +119,13 @@ Game Folder/
 - **Accepted values:** `en` (English) or `es` (neutral Spanish).
 - **Behavior:** The active language changes on the next overlay frame and is saved immediately. Invalid or missing values are repaired to `en`.
 - **Translation files:** Editable UTF-8 `ecm-r/translations/en.ini` and `ecm-r/translations/es.ini` files are loaded from the plugin-relative namespace at startup. Missing or invalid entries safely fall back to English and compiled defaults. Track metadata, filenames, paths, INI keys, and game chyrons are never translated.
+
+### `log_level`
+- **Description:** Selects the persistent diagnostic verbosity.
+- **Default:** `info` after the INI is loaded.
+- **Accepted values:** `error`, `warning`, `info`, or `debug` (case-insensitive and whitespace-trimmed).
+- **Behavior:** Missing or invalid values are repaired to `info`. Bootstrap logging starts unfiltered at `debug` before the INI is read, then applies this value without closing, truncating, or recreating the log.
+- **File and retention:** `ecm-r/ecm-r.x86.log` is created alongside the translation bundles, capped at 2 MiB. ECM-R creates the `ecm-r/` folder when missing and validates that an existing path is a directory. When the limit would be exceeded, the active file is moved to `ecm-r/ecm-r.x86.log.1`; the previous `.1` is replaced and no `.2` is created. Older root-level logs are not migrated. If file operations fail, logging continues through the console for that session.
 
 ### Accepted Boolean Formats
 All `[config]` boolean parameters accept:
@@ -182,3 +192,4 @@ Every scanned track is registered under `[trax]`. ECM-R automatically adds newly
 5. **Supported Audio Containers:** `.wav`, `.mp1` (legacy MPEG-1 Layer I compatibility), `.mp2`, `.mp3`, `.ogg`, and `.aif`.
 6. **Title Parsing:** ECM-R reads embedded metadata tags (ID3v1, ID3v2, Vorbis Comments, RIFF INFO) from music files when they are available. If tags are missing or unparseable, it falls back to splitting filenames on the first `-` character with whitespace trimmed from both sides. If a file matches `Artist - Title.ext`, the chyron, overlay menu bar, and playlist menu show the parsed metadata as clean `Artist - Title` formatting automatically. This fallback applies on a per-field basis: a tagged title with no artist tag will still pick up the artist from the filename. Long embedded artist and title values are truncated safely for the chyron without splitting UTF-8 characters.
 7. **Playback Failure Handling:** Files that BASS cannot open are excluded from playback and the read-only Playlist menu for the current session, while remaining in `[trax]` for re-evaluation on the next launch. Failed attempts are limited to one playlist pass, and startup diagnostics include numeric BASS error codes to help identify stream-open or channel-play failures.
+8. **Crash Evidence:** Unhandled bootstrap exceptions write a timestamped `.dmp` beside the module using the raw module path. Crash dumps are independent of the persistent logger and are never automatically deleted or rotated. Release PDBs are archived separately from runtime packages for symbolization.

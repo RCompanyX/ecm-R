@@ -131,6 +131,7 @@ namespace bass_api
         const std::string bass_path = module_directory.empty()
             ? std::string("bass.dll")
             : module_directory + "\\bass.dll";
+		logger::log_debug(logger::va("Loading BASS from '%s'", fs::ansi_to_utf8(bass_path).c_str()));
 
         module_handle = LoadLibraryA(bass_path.c_str());
         if (module_handle == nullptr)
@@ -138,6 +139,7 @@ namespace bass_api
             const DWORD error = GetLastError();
             reset();
             last_error_message = logger::va("%s\nTried path: %s", format_system_error(error).c_str(), fs::ansi_to_utf8(bass_path).c_str());
+			logger::log_error(logger::va("BASS load failed: %s", last_error_message.c_str()));
             return false;
         }
 
@@ -154,10 +156,12 @@ namespace bass_api
             !resolve(channel_get_tags_ptr, "BASS_ChannelGetTags") ||
             !resolve(error_get_code_ptr, "BASS_ErrorGetCode"))
         {
+			logger::log_error(logger::va("BASS export resolution failed: %s", last_error_message.c_str()));
             unload();
             return false;
         }
 
+		logger::log_debug("BASS exports resolved");
         return true;
     }
 

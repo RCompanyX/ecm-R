@@ -136,6 +136,12 @@ namespace
 		return std::string("ingame_movie_muting = ") + (ingame_movie_muting ? "true" : "false");
 	}
 
+	// Formats the persisted logger level line.
+	std::string build_log_level_line(const logger::level configured_level)
+	{
+		return std::string("log_level = ") + logger::level_name(configured_level);
+	}
+
 	// Updates only the stored config version while preserving the rest of the file layout.
 	void update_config_version_only(const std::string& path)
 	{
@@ -244,7 +250,7 @@ namespace
 	}
 
 	// Rebuilds the complete INI text from the current runtime state.
-	std::string build_config_text(const std::string& playlist, const int volume, const int frontend_volume, const int ingame_volume, const bool stop_music_on_loading_screens, const bool ingame_movie_muting, const bool shuffle_enabled, const bool repeat_enabled)
+	std::string build_config_text(const std::string& playlist, const int volume, const int frontend_volume, const int ingame_volume, const bool stop_music_on_loading_screens, const bool ingame_movie_muting, const bool shuffle_enabled, const bool repeat_enabled, const logger::level configured_log_level)
 	{
 		std::ostringstream output;
 		output << "[core]\n";
@@ -258,6 +264,7 @@ namespace
 		output << build_repeat_enabled_line(repeat_enabled) << "\n";
 		output << build_stop_music_on_loading_screens_line(stop_music_on_loading_screens) << "\n";
 		output << build_ingame_movie_muting_line(ingame_movie_muting) << "\n";
+		output << build_log_level_line(configured_log_level) << "\n";
 		output << "language = " << localization::code(localization::current()) << "\n\n";
 		output << "[keys]\n";
 		for (const auto& binding : input::hotkey_bindings())
@@ -280,6 +287,7 @@ namespace
 void settings::init()
 {
 	settings::config_file = fs::get_self_path() + settings::config_file;
+	logger::log_info(logger::va("Configuration path: %s", settings::config_file.c_str()));
 
 	settings::update();
 }
@@ -294,6 +302,7 @@ void settings::update()
 
 		if (!config)
 		{
+			logger::log_warning("Configuration could not be parsed; deleting it and creating a fresh configuration");
 			fs::del(settings::config_file);
 			settings::update();
 			return;
@@ -310,16 +319,29 @@ void settings::update()
 		const bool missing_shuffle_enabled = ini_get(config, "config", "shuffle_enabled") == nullptr;
 		const bool missing_repeat_enabled = ini_get(config, "config", "repeat_enabled") == nullptr;
 		const char* configured_language_value = ini_get(config, "config", "language");
+		const char* configured_log_level_value = ini_get(config, "config", "log_level");
 		localization::language configured_language = localization::language::en;
+		logger::level configured_log_level = logger::level::info;
 		const bool valid_language = localization::parse_language(configured_language_value, configured_language);
+		const bool valid_log_level = logger::parse_level(configured_log_level_value, configured_log_level);
 		const bool missing_language = configured_language_value == nullptr;
 		const bool invalid_language = configured_language_value != nullptr && !valid_language;
+		const bool missing_log_level = configured_log_level_value == nullptr;
+		const bool invalid_log_level = configured_log_level_value != nullptr && !valid_log_level;
+		const bool noncanonical_log_level = valid_log_level && logger::normalize_level_text(configured_log_level_value) != logger::level_name(configured_log_level);
 		const bool missing_frontend_volume = ini_get(config, "core", "frontend_volume") == nullptr;
 		const bool missing_ingame_volume = ini_get(config, "core", "ingame_volume") == nullptr;
 		bool missing_hotkey_entry = false;
 		bool invalid_hotkey_entry = false;
 
 		localization::init(valid_language ? configured_language : localization::language::en);
+		logger::log_debug(logger::va("Applying configured log_level=%s", logger::level_name(valid_log_level ? configured_log_level : logger::level::info)));
+		logger::set_level(valid_log_level ? configured_log_level : logger::level::info);
+		logger::log_info(logger::va("Configuration loaded; log_level=%s", logger::level_name(logger::current_level_value())));
+		if (missing_log_level || invalid_log_level)
+		{
+			logger::log_warning("Missing or invalid [config] log_level; using info and repairing the INI");
+		}
 		audio::volume = std::stoi(legacy_volume);
 		audio::frontend_volume = std::stoi(safe_ini_get(config, "core", "frontend_volume", legacy_volume.c_str()));
 		audio::ingame_volume = std::stoi(safe_ini_get(config, "core", "ingame_volume", legacy_volume.c_str()));
@@ -361,14 +383,17 @@ void settings::update()
 
 		settings::sync_trax_entries();
 
-		if (version_changed || missing_stop_music_on_loading_screens || missing_ingame_movie_muting || old_ingame_movie_muting_present || old_experimental_section_present || legacy_ingame_movie_muting_present || missing_shuffle_enabled || missing_repeat_enabled || missing_language || invalid_language || missing_frontend_volume || missing_ingame_volume || missing_hotkey_entry || invalid_hotkey_entry)
+		if (version_changed || missing_stop_music_on_loading_screens || missing_ingame_movie_muting || old_ingame_movie_muting_present || old_experimental_section_present || legacy_ingame_movie_muting_present || missing_shuffle_enabled || missing_repeat_enabled || missing_language || invalid_language || missing_log_level || invalid_log_level || noncanonical_log_level || missing_frontend_volume || missing_ingame_volume || missing_hotkey_entry || invalid_hotkey_entry)
 		{
-			fs::write(settings::config_file, build_config_text(audio::playlist_name, audio::volume, audio::frontend_volume, audio::ingame_volume, audio::stop_music_on_loading_screens, audio::ingame_movie_muting, audio::shuffle_enabled, audio::repeat_enabled), false);
+			fs::write(settings::config_file, build_config_text(audio::playlist_name, audio::volume, audio::frontend_volume, audio::ingame_volume, audio::stop_music_on_loading_screens, audio::ingame_movie_muting, audio::shuffle_enabled, audio::repeat_enabled, logger::current_level_value()), false);
+			logger::log_debug("Configuration migration/rewrite completed");
 		}
 	}
 	else if (!fs::exists(settings::config_file))
 	{
 		localization::init(localization::language::en);
+		logger::set_level(logger::level::info);
+		logger::log_info("No configuration found; creating the default configuration with log_level=info");
 		input::reset_all_hotkeys();
 
 		audio::playlist_name = "Music";
@@ -388,7 +413,7 @@ void settings::update()
 		audio::repeat_enabled = true;
 		audio::stop_music_on_loading_screens = true;
 		audio::ingame_movie_muting = true;
-		fs::write(settings::config_file, build_config_text(audio::playlist_name, audio::volume, audio::frontend_volume, audio::ingame_volume, audio::stop_music_on_loading_screens, audio::ingame_movie_muting, audio::shuffle_enabled, audio::repeat_enabled), false);
+		fs::write(settings::config_file, build_config_text(audio::playlist_name, audio::volume, audio::frontend_volume, audio::ingame_volume, audio::stop_music_on_loading_screens, audio::ingame_movie_muting, audio::shuffle_enabled, audio::repeat_enabled, logger::current_level_value()), false);
 		return;
 	}
 

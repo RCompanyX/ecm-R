@@ -71,6 +71,8 @@ Game Folder/
     ecm-r.x86.ini
     bass.dll
     ecm-r/
+      ecm-r.x86.log
+      ecm-r.x86.log.1  (optional backup)
       translations/
         en.ini
         es.ini
@@ -143,6 +145,7 @@ MP1 is a legacy compatibility format and is not a primary QA target. Prefer MP2,
 ### Configuration and Persistence
 
 - Creates `ecm-r.x86.ini` automatically on first launch
+- Writes persistent `ecm-r.x86.log` under `ecm-r/` alongside translations, capturing bootstrap diagnostics before applying `[config] log_level` (`error`, `warning`, `info`, or `debug`); the active file is capped at 2 MiB with one rotating `.1` backup
 - Saves runtime changes for shuffle, repeat, in-game movie muting, volume, and hotkey settings back to the configuration file
 - Migrates older configurations by using legacy `volume` as the fallback source for context-specific volume settings
 - Persists and repairs `[config] language = en` or `es`, loading editable UTF-8 bundles from `ecm-r/translations/en.ini` and `ecm-r/translations/es.ini`
@@ -161,7 +164,7 @@ MP1 is a legacy compatibility format and is not a primary QA target. Prefer MP2,
 
 The full configuration reference is available in [CONFIGURATION.MD](CONFIGURATION.MD).
 
-Key supported settings include `frontend_volume`, `ingame_volume`, `shuffle_enabled`, `repeat_enabled`, `stop_music_on_loading_screens`, `ingame_movie_muting`, `language`, `toggle_overlay`, `pause_track`, `previous_track`, `skip_track`, `toggle_shuffle`, and `toggle_repeat`.
+Key supported settings include `frontend_volume`, `ingame_volume`, `shuffle_enabled`, `repeat_enabled`, `stop_music_on_loading_screens`, `ingame_movie_muting`, `language`, `log_level`, `toggle_overlay`, `pause_track`, `previous_track`, `skip_track`, `toggle_shuffle`, and `toggle_repeat`.
 
 Use `None` or `Unbound` in the `[keys]` section to disable a binding manually. The new `toggle_shuffle` and `toggle_repeat` hotkeys default to `None` until you assign them.
 
@@ -181,6 +184,8 @@ The current roadmap includes:
 - If your usage becomes commercial, review the official BASS licensing terms and obtain any required license before distribution. ECM-R is maintained as a non-commercial fork project.
 - ECM-R ignores its hotkeys during the first startup chyron so the initial banner can complete cleanly before manual controls are used.
 - The mod writes a crash dump file on unhandled exceptions.
+- Diagnostic logs are stored under the module-relative `ecm-r/` folder as `ecm-r.x86.log`; rotation keeps at most `ecm-r.x86.log.1`, never creates `.2`, and never removes or rotates timestamped `.dmp` crash evidence. The logger creates `ecm-r/` when missing and does not migrate older root-level logs. Logs can contain module-relative paths, playlist filenames, and Windows/BASS error details; review them before sharing.
+- Release builds retain the exact matching PDB as a separate build/symbol artifact for dump analysis; it is not part of the runtime package.
 - This repository includes third-party dependencies and keeps the original MIT license notice.
 - The fork branding is ECM-R, and the runtime filenames follow the `ecm-r.*` naming scheme.
 
