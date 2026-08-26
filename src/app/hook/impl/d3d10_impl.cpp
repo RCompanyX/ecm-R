@@ -44,17 +44,20 @@ long __stdcall hkPresent10(IDXGISwapChain* pSwapChain, UINT SyncInterval, UINT F
 	return oPresent(pSwapChain, SyncInterval, Flags);
 }
 
-void impl::d3d10::init()
+bool impl::d3d10::init()
 {
 	if (kiero::bind(8, (void**)&oPresent, hkPresent10) != kiero::Status::Success)
 	{
 		logger::log_error("Failed to bind DirectX 10 hook");
 		MessageBoxA(nullptr, "Failed to hook DirectX 10!", "ECM", 0);
+		return false;
 	}
 	else
 	{
 		logger::log_debug("DirectX 10 hook bound");
 	}
+
+	return true;
 }
 
 #endif // KIERO_INCLUDE_D3D10

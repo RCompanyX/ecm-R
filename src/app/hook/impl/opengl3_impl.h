@@ -6,6 +6,6 @@ namespace impl
 {
 	namespace opengl3
 	{
-		void init();
+		bool init();
 	}
 }

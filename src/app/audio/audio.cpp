@@ -11,6 +11,8 @@
 #include "defs.hpp"
 
 #include <algorithm>
+#include <atomic>
+#include <cstdint>
 #include <numeric>
 #include <random>
 #include <unordered_set>
@@ -19,6 +21,14 @@ namespace
 {
     constexpr int max_playback_history_entries = 50;
     std::unordered_set<std::string> unplayable_files;
+	enum class initialization_state : std::uint8_t
+	{
+		not_started,
+		initializing,
+		ready,
+		failed,
+	};
+	std::atomic<initialization_state> audio_initialization = initialization_state::not_started;
 	bool has_logged_state = false;
 	bool has_logged_context = false;
 	std::int32_t last_logged_context = -1;
@@ -279,6 +289,11 @@ namespace
 	// Applies the combined manual and game-driven pause state to the active stream.
 	void sync_pause_state()
 	{
+		if (!audio::is_ready())
+		{
+			return;
+		}
+
 		const bool was_paused = audio::paused;
 
 		audio::paused = audio::manual_paused || audio::game_paused;
@@ -549,6 +564,25 @@ namespace
 
 void audio::init()
 {
+	initialization_state expected = initialization_state::not_started;
+	if (!audio_initialization.compare_exchange_strong(expected, initialization_state::initializing,
+		std::memory_order_acq_rel, std::memory_order_acquire))
+	{
+		return;
+	}
+
+	const auto fail_initialization = []
+	{
+		global::shutdown.store(true, std::memory_order_release);
+		audio_initialization.store(initialization_state::failed, std::memory_order_release);
+	};
+
+	if (global::shutdown.load(std::memory_order_acquire))
+	{
+		fail_initialization();
+		return;
+	}
+
 	logger::log_info("Audio initialization started");
 	rebuild_mute_detection();
 
@@ -557,7 +591,7 @@ void audio::init()
 		const std::string error_message = localization::format("bass.load_failed", {{ "detail", bass_api::last_error() }});
 		logger::log_error(logger::va("Failed to load bass.dll: %s", bass_api::last_error().c_str()));
 		global::msg_box(localization::text("bass.title"), error_message);
-		global::shutdown = true;
+		fail_initialization();
 		return;
 	}
 
@@ -572,8 +606,8 @@ void audio::init()
 		logger::log_error(logger::va("Incorrect BASS version 0x%08lX (expected family 0x%08lX)",
 			static_cast<unsigned long>(loaded_version), static_cast<unsigned long>(bass_api::version)));
 		global::msg_box(localization::text("bass.title"), error_message);
-		global::shutdown = true;
 		bass_api::unload();
+		fail_initialization();
 		return;
 	}
 
@@ -583,21 +617,34 @@ void audio::init()
 		const std::string error_message = localization::format("bass.device_failed", {{ "error", std::to_string(bass_error) }});
 		logger::log_error(logger::va("BASS device initialization failed (error %d)", bass_error));
 		global::msg_box(localization::text("bass.title"), error_message);
-       bass_api::unload();
-       global::shutdown = true;
+		bass_api::unload();
+		fail_initialization();
 		return;
 	}
 	logger::log_info("BASS output device initialized");
 
 	probe_unplayable_files();
-  audio::create_playlist_order();
+	audio::create_playlist_order();
 	logger::log_info(logger::va("Playlist ready: %zu discovered track(s), %zu playable track(s)", audio::playlist_files.size(), audio::playlist_order.size()));
-	audio::pause();
+	audio::game_paused = true;
+	audio::paused = true;
+	audio_initialization.store(initialization_state::ready, std::memory_order_release);
 	audio::update();
+}
+
+bool audio::is_ready()
+{
+	return audio_initialization.load(std::memory_order_acquire) == initialization_state::ready &&
+		!global::shutdown.load(std::memory_order_acquire);
 }
 
 void audio::update()
 {
+	if (!audio::is_ready())
+	{
+		return;
+	}
+
 	const GameFlowState previous_state = global::state;
 	global::state = game_state;
 	if (!has_logged_state || previous_state != global::state)
@@ -669,6 +716,11 @@ void audio::update()
 
 bool audio::play_file(const std::string& file, int channel)
 {
+	if (!audio::is_ready())
+	{
+		return false;
+	}
+
 	const bool played = ::play_file(file.c_str(), channel);
 	if (played)
 	{
@@ -679,6 +731,11 @@ bool audio::play_file(const std::string& file, int channel)
 
 void audio::stop(int channel)
 {
+	if (!audio::is_ready())
+	{
+		return;
+	}
+
    if (audio::chan[channel] != 0 || audio::playing)
 	{
 		logger::log_info(logger::va("Track stopped: %s - %s", audio::currently_playing.artist.c_str(), audio::currently_playing.title.c_str()));
@@ -698,6 +755,11 @@ void audio::stop(int channel)
 
 void audio::shuffle()
 {
+	if (!audio::is_ready())
+	{
+		return;
+	}
+
 	audio::create_playlist_order();
 }
 
@@ -754,7 +816,7 @@ std::int32_t audio::current_context_volume()
 
 void audio::apply_current_context_volume()
 {
-	if (audio::chan[0] == 0)
+	if (!audio::is_ready() || audio::chan[0] == 0)
 	{
 		return;
 	}
@@ -813,6 +875,11 @@ void audio::create_playlist_order()
 
 void audio::play()
 {
+	if (!audio::is_ready())
+	{
+		return;
+	}
+
 	const bool can_resume_current_song = audio::can_resume_current_song();
 
   audio::game_paused = false;
@@ -832,12 +899,22 @@ void audio::play()
 
 void audio::pause()
 {
+	if (!audio::is_ready())
+	{
+		return;
+	}
+
    audio::game_paused = true;
 	sync_pause_state();
 }
 
 void audio::sync_game_pause_from_mute_packages()
 {
+	if (!audio::is_ready())
+	{
+		return;
+	}
+
 	const bool should_pause = is_mute_package_loaded();
 	if (should_pause == audio::game_paused)
 	{
@@ -857,6 +934,11 @@ void audio::sync_game_pause_from_mute_packages()
 
 void audio::toggle_manual_pause()
 {
+	if (!audio::is_ready())
+	{
+		return;
+	}
+
 	const bool can_resume_current_song = audio::can_resume_current_song();
 
 	audio::manual_paused = !audio::manual_paused;
@@ -904,7 +986,7 @@ void audio::enumerate_playlist()
 
 void audio::resolve_playlist_metadata()
 {
-	if (!bass_api::is_available())
+	if (!audio::is_ready() || !bass_api::is_available())
 	{
 		return;
 	}
@@ -938,16 +1020,31 @@ void audio::resolve_playlist_metadata()
 
 void audio::play_next_song()
 {
+	if (!audio::is_ready())
+	{
+		return;
+	}
+
 	play_relative_song(1);
 }
 
 void audio::play_previous_song()
 {
+	if (!audio::is_ready())
+	{
+		return;
+	}
+
 	play_relative_song(-1);
 }
 
 void audio::skip_to_next_track()
 {
+	if (!audio::is_ready())
+	{
+		return;
+	}
+
 	if (audio::playing)
 	{
 		audio::play_next_song();
@@ -960,6 +1057,11 @@ void audio::skip_to_next_track()
 
 void audio::set_shuffle_enabled(const bool enabled)
 {
+	if (!audio::is_ready())
+	{
+		return;
+	}
+
 	if (audio::shuffle_enabled == enabled)
 	{
 		return;
@@ -978,6 +1080,11 @@ void audio::toggle_shuffle_enabled()
 
 void audio::set_repeat_enabled(const bool enabled)
 {
+	if (!audio::is_ready())
+	{
+		return;
+	}
+
 	if (audio::repeat_enabled == enabled)
 	{
 		return;
@@ -994,6 +1101,11 @@ void audio::toggle_repeat_enabled()
 
 void audio::set_ingame_movie_muting(const bool enabled)
 {
+	if (!audio::is_ready())
+	{
+		return;
+	}
+
 	if (audio::ingame_movie_muting == enabled)
 	{
 		return;
@@ -1008,6 +1120,11 @@ void audio::set_ingame_movie_muting(const bool enabled)
 
 void audio::request_current_chyron()
 {
+	if (!audio::is_ready())
+	{
+		return;
+	}
+
 	audio::pending_chyron = true;
 	try_show_current_chyron();
 }
@@ -1019,6 +1136,11 @@ bool audio::are_hotkeys_locked()
 
 void audio::set_volume(std::int32_t vol_in)
 {
+	if (!audio::is_ready())
+	{
+		return;
+	}
+
    const std::int32_t volume = clamp_volume(vol_in);
 	if (audio::chan[0] != 0 && bass_api::set_channel_volume(audio::chan[0], static_cast<float>(volume) / 100.0f))
 	{

@@ -174,15 +174,15 @@ Logs can contain module-relative paths, playlist filenames, and Windows/BASS err
 - Applies the NFSU2-specific patches and hooks.
 - Loads the persisted settings before audio starts.
 - Loads and validates both translation bundles during settings initialization, before BASS startup dialogs can appear.
-- Initializes Kiero and selects the render backend.
-- Installs backend-specific ImGui hooks.
+- Selects the render backend. When `d3d9.dll` is already loaded, ECM-R bypasses Kiero's synthetic D3D9 `NULLREF` device probe and arms a live `Direct3DCreate9`/`IDirect3D9::CreateDevice` capture hook instead.
+- Installs backend-specific ImGui hooks. The live D3D9 device's `EndScene`, `Present`, and `Reset` methods are bound only after the game creates that device.
 - Enables all MinHook hooks.
 
 ### 3. First renderer frame initializes the live overlay stack
 
 Audio and overlay initialization do not complete inside `main.cpp` alone.
 
-Instead, the selected renderer backend performs the final runtime setup on the first hooked frame. In the D3D9 path this happens in `hkEndScene`, which:
+Instead, the selected renderer backend performs the final runtime setup on the first live callback. In the D3D9 path this happens in the game-created device's `hkEndScene` or `hkPresent`, which:
 
 1. Saves the game window handle to `global::hwnd`.
 2. Calls `audio::init()`.
@@ -191,6 +191,7 @@ Instead, the selected renderer backend performs the final runtime setup on the f
 5. Initializes the Win32 and renderer-specific ImGui backends.
 
 This means ECM-R depends on a successful graphics hook to bring up both audio playback and the overlay.
+The D3D9 path records the first live callback and fails closed after a bounded no-callback timeout; it keeps ECM-R loaded because direct game hooks may still point at the module.
 
 ### 4. Per-frame and per-tick updates
 
@@ -422,6 +423,9 @@ The current NFSU2 integration depends on several direct patches and hooks in `sr
 | `0x0057EDA3 -> sys_init` | Insert ECM-R system init hook |
 | `0x005811E4 -> NFSU2_MainLoop` | Run `audio::update()` every NFSU2 main-loop tick |
 | `0x00537980` via MinHook | Intercept package loads for ECM-R mute handling |
+| `d3d9.dll!Direct3DCreate9` via MinHook | Capture the game's live D3D9 factory without creating a synthetic device |
+| Live `IDirect3D9::CreateDevice` via MinHook | Capture the game-created D3D9 device |
+| Live `IDirect3DDevice9::Reset`/`Present`/`EndScene` via MinHook | Rebuild ImGui resources and render the overlay |
 
 ### Package-load hook behavior
 
@@ -612,7 +616,8 @@ Expected output paths include:
 ## Known Boundaries and Non-Obvious Constraints
 
 - ECM-R currently assumes NFSU2 first; do not describe the repository as broadly multi-game unless the runtime behavior changes.
-- Audio startup depends on renderer-hook success because `audio::init()` runs from the render backend.
+- Audio startup depends on a live renderer callback because `audio::init()` runs from the render backend. Game-loop and package callbacks remain inert until the BASS device is initialized.
+- D3D9 renderer setup avoids Kiero's synthetic `NULLREF` probe and requires the game-created device. If no live callback arrives, a bounded watchdog disables audio without unloading the module.
 - Chyron behavior is tightly coupled to both game state and FNG package availability.
 - The loading-screen option stops custom audio entirely instead of keeping a resumable pause token for that track.
 - Track routing is currently coarse-grained: `ALL`, `FE`, and `IG` only.

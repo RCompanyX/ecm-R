@@ -47,17 +47,20 @@ long __stdcall hkPresent11(IDXGISwapChain* pSwapChain, UINT SyncInterval, UINT F
 	return oPresent(pSwapChain, SyncInterval, Flags);
 }
 
-void impl::d3d11::init()
+bool impl::d3d11::init()
 {
 	if (kiero::bind(8, (void**)&oPresent, hkPresent11) != kiero::Status::Success)
 	{
 		logger::log_error("Failed to bind DirectX 11 hook");
 		MessageBoxA(nullptr, "Failed to hook DirectX 11!", "ECM", 0);
+		return false;
 	}
 	else
 	{
 		logger::log_debug("DirectX 11 hook bound");
 	}
+
+	return true;
 }
 
 #endif // KIERO_INCLUDE_D3D11

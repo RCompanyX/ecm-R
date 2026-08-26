@@ -37,17 +37,20 @@ BOOL __stdcall hkWglSwapBuffers(_In_ HDC hDc)
 	return owglSwapBuffers(hDc);
 }
 
-void impl::opengl3::init()
+bool impl::opengl3::init()
 {
 	if (kiero::bind(336, (void**)&owglSwapBuffers, hkWglSwapBuffers) != kiero::Status::Success)
 	{
 		logger::log_error("Failed to bind OpenGL hook");
 		MessageBoxA(nullptr, "Failed to hook OpenGL!", "ECM", 0);
+		return false;
 	}
 	else
 	{
 		logger::log_debug("OpenGL hook bound");
 	}
+
+	return true;
 }
 
 #endif // KIERO_INCLUDE_OPENGL

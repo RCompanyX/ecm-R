@@ -6,6 +6,6 @@ namespace impl
 {
 	namespace d3d10
 	{
-		void init();
+		bool init();
 	}
 }

@@ -9,9 +9,15 @@
 
 #include <algorithm>
 #include <cctype>
+#include <iterator>
 
 bool play_file(const char* file, int channel)
 {
+	if (!audio::is_ready() || file == nullptr || channel < 0 || channel >= static_cast<int>(std::size(audio::chan)))
+	{
+		return false;
+	}
+
    if (audio::chan[channel] != 0)
    {
       bass_api::stream_free(static_cast<std::uint32_t>(audio::chan[channel]));
