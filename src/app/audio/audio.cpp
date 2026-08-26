@@ -290,21 +290,19 @@ namespace
 				audio::game_paused ? "true" : "false"));
 		}
 
-		if (audio::chan[0] == 0)
-		{
-			return;
-		}
-
 		if (audio::paused)
 		{
 			bass_api::pause();
-           hook::HideChyron();
+			if (audio::chan[0] != 0)
+			{
+				hook::HideChyron();
+			}
 		}
 		else
 		{
 			bass_api::start();
 
-			if (was_paused && !audio::currently_playing.title.empty() && audio::currently_playing.title != "N/A")
+			if (audio::chan[0] != 0 && was_paused && !audio::currently_playing.title.empty() && audio::currently_playing.title != "N/A")
 			{
 				audio::request_current_chyron();
 			}
@@ -438,6 +436,19 @@ namespace
 	// Moves relative to the current song, using shuffle history when available.
 	void play_relative_song(const int delta)
 	{
+		if (audio::manual_paused)
+		{
+			audio::manual_paused = false;
+			sync_pause_state();
+		}
+
+		if (audio::paused)
+		{
+			return;
+		}
+
+		audio::playlist_ended = false;
+
 		const int reset_index = delta > 0 ? -1 : static_cast<int>(audio::playlist_order.size());
 		if (!ensure_playlist_order_for_current_context(reset_index))
 		{
@@ -927,13 +938,11 @@ void audio::resolve_playlist_metadata()
 
 void audio::play_next_song()
 {
-	audio::playlist_ended = false;
 	play_relative_song(1);
 }
 
 void audio::play_previous_song()
 {
-	audio::playlist_ended = false;
 	play_relative_song(-1);
 }
 
@@ -941,7 +950,6 @@ void audio::skip_to_next_track()
 {
 	if (audio::playing)
 	{
-		audio::stop(0);
 		audio::play_next_song();
 	}
 	else if (!audio::paused)

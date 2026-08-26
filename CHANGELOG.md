@@ -12,6 +12,9 @@ This changelog tracks the tagged releases recorded in this repository.
 - Added bootstrap, MinHook, renderer, settings, BASS, playback, state-transition, pause, loading-screen, and mute-package diagnostics without per-tick, per-frame, or per-poll logging.
 - Added Release PDB generation and a separate CI symbol artifact for crash-dump analysis without adding symbols to the runtime package.
 
+### Fixed
+- Fixed custom playback becoming permanently silent after using previous/skip navigation while playback was manually paused.
+
 ## [v0.5.15-alpha] - 2026-08-20
 
 ### Added
