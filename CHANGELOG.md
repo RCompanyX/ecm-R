@@ -13,6 +13,9 @@ This changelog tracks the tagged releases recorded in this repository.
 - Added Release PDB generation and a separate CI symbol artifact for crash-dump analysis without adding symbols to the runtime package.
 - Added a live D3D9 device capture path for NFSU2's dgVoodoo2 renderer facade, binding `Direct3DCreate9`, the game-created `IDirect3D9::CreateDevice`, and live `EndScene`/`Present`/`Reset` without a synthetic `NULLREF` device.
 
+### Changed
+- Changed live D3D9 startup to wait for actual `Direct3DCreate9` and `CreateDevice` callbacks instead of probing a factory from the worker thread; missed callbacks are diagnosed and fail closed without unloading ECM-R.
+
 ### Fixed
 - Fixed custom playback becoming permanently silent after using previous/skip navigation while playback was manually paused.
 - Fixed renderer/audio startup races so game-loop, package, and playback callbacks cannot call BASS before device initialization or after shutdown.

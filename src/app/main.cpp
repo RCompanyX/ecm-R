@@ -59,7 +59,12 @@ namespace
 			if (!global::renderer_callback_seen.load(std::memory_order_acquire) &&
 				!global::shutdown.exchange(true, std::memory_order_acq_rel))
 			{
-				logger::log_error("Renderer live callback was not observed within 30 seconds; audio disabled without unloading ECM-R");
+				const bool factory_callback_seen = impl::d3d9::has_direct3d_create9_callback();
+				const bool device_callback_seen = impl::d3d9::has_create_device_callback();
+				logger::log_error(logger::va("Renderer live callback was not observed within 30 seconds; Direct3DCreate9 callback=%s, CreateDevice callback=%s; safe pre-existing factory recovery=%s; audio disabled without unloading ECM-R",
+					factory_callback_seen ? "observed" : "not observed",
+					device_callback_seen ? "observed" : "not observed",
+					factory_callback_seen ? "not needed" : "unavailable without unsafe probe"));
 			}
 		}).detach();
 	}
@@ -294,6 +299,11 @@ void init()
 	if (enable_status != MH_OK)
 	{
 		logger::log_error(logger::va("MinHook enable failed (status %d)", static_cast<int>(enable_status)));
+		MH_DisableHook(MH_ALL_HOOKS);
+		if (live_d3d9_selected)
+		{
+			impl::d3d9::cleanup();
+		}
 		global::shutdown.store(true, std::memory_order_release);
 	}
 	else

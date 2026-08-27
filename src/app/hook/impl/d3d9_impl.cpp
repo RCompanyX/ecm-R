@@ -27,13 +27,20 @@ namespace
 	present oPresent = nullptr;
 	end_scene oEndScene = nullptr;
 
+	void* direct3d_create9_target = nullptr;
+	void* create_device_target = nullptr;
+	void* reset_target = nullptr;
+	void* present_target = nullptr;
+	void* end_scene_target = nullptr;
+
 	std::mutex hook_mutex;
 	std::mutex runtime_mutex;
 	bool create_device_hook_attempted = false;
 	bool device_hook_attempted = false;
 	std::atomic_bool device_hooks_bound{ false };
 	std::atomic_bool imgui_initialized{ false };
-	std::atomic_bool direct3d_create_logged{ false };
+	std::atomic_bool direct3d_create_callback_seen{ false };
+	std::atomic_bool create_device_callback_seen{ false };
 	std::atomic_bool frame_callback_logged{ false };
 
 	enum class frame_callback : std::uint8_t
@@ -66,6 +73,18 @@ namespace
 		return status == MH_OK || status == MH_ERROR_ENABLED;
 	}
 
+	void remove_hook(void*& target)
+	{
+		if (target == nullptr)
+		{
+			return;
+		}
+
+		MH_DisableHook(target);
+		MH_RemoveHook(target);
+		target = nullptr;
+	}
+
 	bool read_vtable_entry(void* object, const std::uint16_t index, void** target)
 	{
 		if (object == nullptr || target == nullptr)
@@ -84,31 +103,6 @@ namespace
 		}
 
 		return *target != nullptr;
-	}
-
-	IDirect3D9* call_original_create9(bool* faulted)
-	{
-		if (faulted != nullptr)
-		{
-			*faulted = false;
-		}
-		if (oDirect3DCreate9 == nullptr)
-		{
-			return nullptr;
-		}
-
-		__try
-		{
-			return oDirect3DCreate9(D3D_SDK_VERSION);
-		}
-		__except (EXCEPTION_EXECUTE_HANDLER)
-		{
-			if (faulted != nullptr)
-			{
-				*faulted = true;
-			}
-			return nullptr;
-		}
 	}
 
 	bool bind_live_device(IDirect3DDevice9* device)
@@ -134,49 +128,52 @@ namespace
 		}
 		device_hook_attempted = true;
 
-		void* reset_target = nullptr;
-		void* present_target = nullptr;
-		void* end_scene_target = nullptr;
-		if (!read_vtable_entry(device, reset_index, &reset_target) ||
-			!read_vtable_entry(device, present_index, &present_target) ||
-			!read_vtable_entry(device, end_scene_index, &end_scene_target))
+		void* reset_entry = nullptr;
+		void* present_entry = nullptr;
+		void* end_scene_entry = nullptr;
+		if (!read_vtable_entry(device, reset_index, &reset_entry) ||
+			!read_vtable_entry(device, present_index, &present_entry) ||
+			!read_vtable_entry(device, end_scene_index, &end_scene_entry))
 		{
 			logger::log_error("D3D9 live device vtable entries are unavailable; renderer disabled");
 			return false;
 		}
 
-		const MH_STATUS reset_status = MH_CreateHook(reset_target, reinterpret_cast<LPVOID>(&hkReset), reinterpret_cast<LPVOID*>(&oReset));
+		const MH_STATUS reset_status = MH_CreateHook(reset_entry, reinterpret_cast<LPVOID>(&hkReset), reinterpret_cast<LPVOID*>(&oReset));
 		if (reset_status != MH_OK)
 		{
 			logger::log_error(logger::va("D3D9 live Reset hook failed (status %d)", static_cast<int>(reset_status)));
 			return false;
 		}
+		reset_target = reset_entry;
 
-		const MH_STATUS present_status = MH_CreateHook(present_target, reinterpret_cast<LPVOID>(&hkPresent), reinterpret_cast<LPVOID*>(&oPresent));
+		const MH_STATUS present_status = MH_CreateHook(present_entry, reinterpret_cast<LPVOID>(&hkPresent), reinterpret_cast<LPVOID*>(&oPresent));
 		if (present_status != MH_OK)
 		{
-			MH_RemoveHook(reset_target);
+			remove_hook(reset_target);
 			oReset = nullptr;
 			logger::log_error(logger::va("D3D9 live Present hook failed (status %d)", static_cast<int>(present_status)));
 			return false;
 		}
+		present_target = present_entry;
 
-		const MH_STATUS end_scene_status = MH_CreateHook(end_scene_target, reinterpret_cast<LPVOID>(&hkEndScene), reinterpret_cast<LPVOID*>(&oEndScene));
+		const MH_STATUS end_scene_status = MH_CreateHook(end_scene_entry, reinterpret_cast<LPVOID>(&hkEndScene), reinterpret_cast<LPVOID*>(&oEndScene));
 		if (end_scene_status != MH_OK)
 		{
-			MH_RemoveHook(reset_target);
-			MH_RemoveHook(present_target);
+			remove_hook(reset_target);
+			remove_hook(present_target);
 			oReset = nullptr;
 			oPresent = nullptr;
 			logger::log_error(logger::va("D3D9 live EndScene hook failed (status %d)", static_cast<int>(end_scene_status)));
 			return false;
 		}
+		end_scene_target = end_scene_entry;
 
 		if (!enable_hook(reset_target) || !enable_hook(present_target) || !enable_hook(end_scene_target))
 		{
-			MH_RemoveHook(reset_target);
-			MH_RemoveHook(present_target);
-			MH_RemoveHook(end_scene_target);
+			remove_hook(reset_target);
+			remove_hook(present_target);
+			remove_hook(end_scene_target);
 			oReset = nullptr;
 			oPresent = nullptr;
 			oEndScene = nullptr;
@@ -216,9 +213,10 @@ namespace
 			oCreateDevice = nullptr;
 			return false;
 		}
+		create_device_target = target;
 		if (!enable_hook(target))
 		{
-			MH_RemoveHook(target);
+			remove_hook(create_device_target);
 			logger::log_error("D3D9 live CreateDevice hook could not be enabled");
 			oCreateDevice = nullptr;
 			return false;
@@ -231,22 +229,42 @@ namespace
 	HRESULT WINAPI hkCreateDevice(IDirect3D9* direct3d9, UINT adapter, D3DDEVTYPE device_type, HWND focus_window,
 		DWORD behavior_flags, D3DPRESENT_PARAMETERS* presentation_parameters, IDirect3DDevice9** returned_device)
 	{
+		if (!create_device_callback_seen.exchange(true, std::memory_order_acq_rel))
+		{
+			logger::log_info("D3D9 live CreateDevice callback received");
+		}
+
 		if (oCreateDevice == nullptr)
 		{
 			return D3DERR_INVALIDCALL;
 		}
 
-		const HRESULT result = oCreateDevice(direct3d9, adapter, device_type, focus_window, behavior_flags,
-			presentation_parameters, returned_device);
+		HRESULT result = D3DERR_INVALIDCALL;
+		bool faulted = false;
+		__try
+		{
+			result = oCreateDevice(direct3d9, adapter, device_type, focus_window, behavior_flags,
+				presentation_parameters, returned_device);
+		}
+		__except (EXCEPTION_EXECUTE_HANDLER)
+		{
+			faulted = true;
+		}
+		if (faulted)
+		{
+			fail_renderer("D3D9 live CreateDevice callback faulted; renderer disabled");
+			return D3DERR_INVALIDCALL;
+		}
+
 		if (SUCCEEDED(result))
 		{
 			if (returned_device == nullptr || *returned_device == nullptr)
 			{
-				logger::log_error("D3D9 CreateDevice returned no COM device; renderer disabled");
+				fail_renderer("D3D9 CreateDevice returned no COM device; renderer disabled");
 			}
 			else if (!global::shutdown.load(std::memory_order_acquire) && !bind_live_device(*returned_device))
 			{
-				logger::log_error("D3D9 live device capture failed; renderer disabled");
+				fail_renderer("D3D9 live device capture failed; renderer disabled");
 			}
 		}
 
@@ -255,19 +273,38 @@ namespace
 
 	IDirect3D9* WINAPI hkDirect3DCreate9(UINT sdk_version)
 	{
+		if (!direct3d_create_callback_seen.exchange(true, std::memory_order_acq_rel))
+		{
+			logger::log_info("D3D9 live Direct3DCreate9 callback received");
+		}
+
 		if (oDirect3DCreate9 == nullptr)
 		{
 			return nullptr;
 		}
 
-		IDirect3D9* direct3d9 = oDirect3DCreate9(sdk_version);
+		IDirect3D9* direct3d9 = nullptr;
+		bool faulted = false;
+		__try
+		{
+			direct3d9 = oDirect3DCreate9(sdk_version);
+		}
+		__except (EXCEPTION_EXECUTE_HANDLER)
+		{
+			faulted = true;
+		}
+		if (faulted)
+		{
+			fail_renderer("D3D9 live Direct3DCreate9 callback faulted; renderer disabled");
+			return nullptr;
+		}
+
 		if (direct3d9 != nullptr && !global::shutdown.load(std::memory_order_acquire))
 		{
-			if (!direct3d_create_logged.exchange(true, std::memory_order_acq_rel))
+			if (!bind_create_device(direct3d9))
 			{
-				logger::log_debug("D3D9 live Direct3DCreate9 callback captured");
+				fail_renderer("D3D9 live factory could not bind CreateDevice; renderer disabled");
 			}
-			bind_create_device(direct3d9);
 		}
 
 		return direct3d9;
@@ -458,38 +495,47 @@ bool impl::d3d9::init()
 		logger::log_error(logger::va("D3D9 live Direct3DCreate9 hook failed (status %d)", static_cast<int>(status)));
 		return false;
 	}
-
-	if (!enable_hook(reinterpret_cast<LPVOID>(target)))
+	direct3d_create9_target = reinterpret_cast<LPVOID>(target);
+	if (!enable_hook(direct3d_create9_target))
 	{
-		MH_RemoveHook(reinterpret_cast<LPVOID>(target));
+		remove_hook(direct3d_create9_target);
 		oDirect3DCreate9 = nullptr;
 		logger::log_error("D3D9 live Direct3DCreate9 hook could not be enabled");
 		return false;
 	}
 
-	// Bind the shared factory method too when the game created its factory before ECM-R.
-	bool existing_factory_faulted = false;
-	IDirect3D9* existing_factory = call_original_create9(&existing_factory_faulted);
-	if (existing_factory_faulted)
-	{
-		logger::log_error("D3D9 live factory probe faulted; renderer disabled");
-		MH_RemoveHook(reinterpret_cast<LPVOID>(target));
-		oDirect3DCreate9 = nullptr;
-		return false;
-	}
-
-	if (existing_factory != nullptr)
-	{
-		const bool factory_hooked = bind_create_device(existing_factory);
-		existing_factory->Release();
-		if (!factory_hooked)
-		{
-			logger::log_error("D3D9 live factory hook was not usable; renderer disabled");
-		}
-	}
-
-	logger::log_debug("D3D9 live-device backend bound; waiting for the game-created device");
+	logger::log_info("D3D9 live factory capture armed; waiting for the game's Direct3DCreate9 callback");
+	logger::log_debug("D3D9 already-created factories are not probed or enumerated; callback capture is the safe path");
 	return true;
+}
+
+bool impl::d3d9::has_direct3d_create9_callback()
+{
+	return direct3d_create_callback_seen.load(std::memory_order_acquire);
+}
+
+bool impl::d3d9::has_create_device_callback()
+{
+	return create_device_callback_seen.load(std::memory_order_acquire);
+}
+
+void impl::d3d9::cleanup()
+{
+	std::lock_guard<std::mutex> lock(hook_mutex);
+	remove_hook(end_scene_target);
+	remove_hook(present_target);
+	remove_hook(reset_target);
+	remove_hook(create_device_target);
+	remove_hook(direct3d_create9_target);
+
+	oEndScene = nullptr;
+	oPresent = nullptr;
+	oReset = nullptr;
+	oCreateDevice = nullptr;
+	oDirect3DCreate9 = nullptr;
+	device_hooks_bound.store(false, std::memory_order_release);
+	create_device_hook_attempted = false;
+	device_hook_attempted = false;
 }
 
 #endif // KIERO_INCLUDE_D3D9
