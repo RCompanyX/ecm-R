@@ -61,10 +61,9 @@ namespace
 			{
 				const bool factory_callback_seen = impl::d3d9::has_direct3d_create9_callback();
 				const bool device_callback_seen = impl::d3d9::has_create_device_callback();
-				logger::log_error(logger::va("Renderer live callback was not observed within 30 seconds; Direct3DCreate9 callback=%s, CreateDevice callback=%s; safe pre-existing factory recovery=%s; audio disabled without unloading ECM-R",
+				logger::log_error(logger::va("Renderer live callback was not observed within 30 seconds; Direct3DCreate9 callback=%s, CreateDevice callback=%s; audio disabled without unloading ECM-R",
 					factory_callback_seen ? "observed" : "not observed",
-					device_callback_seen ? "observed" : "not observed",
-					factory_callback_seen ? "not needed" : "unavailable without unsafe probe"));
+					device_callback_seen ? "observed" : "not observed"));
 			}
 		}).detach();
 	}

@@ -174,7 +174,7 @@ Logs can contain module-relative paths, playlist filenames, and Windows/BASS err
 - Applies the NFSU2-specific patches and hooks.
 - Loads the persisted settings before audio starts.
 - Loads and validates both translation bundles during settings initialization, before BASS startup dialogs can appear.
-- Selects the render backend. When `d3d9.dll` is already loaded, ECM-R bypasses Kiero's synthetic D3D9 `NULLREF` device probe and arms a live `Direct3DCreate9`/`IDirect3D9::CreateDevice` capture hook instead. The factory hook waits for the game's real callback; it never calls the provider from the worker as a probe, and already-created factories are not safely enumerable.
+- Selects the render backend. When `d3d9.dll` is already loaded, ECM-R bypasses Kiero's synthetic D3D9 `NULLREF` device probe and arms a live `Direct3DCreate9`/`IDirect3D9::CreateDevice` capture hook instead. It also obtains a factory through the already-loaded export to recover the shared `CreateDevice` entry when the game's export callback was missed; it never creates a device or enumerates already-created devices.
 - Installs backend-specific ImGui hooks. The live D3D9 device's `EndScene`, `Present`, and `Reset` methods are bound only after the game creates that device.
 - Enables all MinHook hooks.
 
@@ -191,7 +191,7 @@ Instead, the selected renderer backend performs the final runtime setup on the f
 5. Initializes the Win32 and renderer-specific ImGui backends.
 
 This means ECM-R depends on a successful graphics hook to bring up both audio playback and the overlay.
-The D3D9 path records the first live callback and fails closed after a bounded no-callback timeout, reporting whether `Direct3DCreate9` and `CreateDevice` callbacks occurred; it keeps ECM-R loaded because direct game hooks may still point at the module.
+The D3D9 path records the first live callback and fails closed after a bounded no-callback timeout, reporting whether `Direct3DCreate9` and `CreateDevice` callbacks occurred; it keeps ECM-R loaded because direct game hooks may still point at the module. If the game device already existed before ECM-R loaded, the public D3D9 API provides no safe device enumeration path, so the watchdog remains the fail-closed boundary.
 
 ### 4. Per-frame and per-tick updates
 

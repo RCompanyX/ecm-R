@@ -247,7 +247,17 @@ namespace
 	IDirect3D9* call_direct3d_create9_safely(UINT sdk_version, bool* faulted)
 	{
 		IDirect3D9* direct3d9 = nullptr;
+		if (faulted == nullptr)
+		{
+			return nullptr;
+		}
+
 		*faulted = false;
+		if (oDirect3DCreate9 == nullptr)
+		{
+			return nullptr;
+		}
+
 		__try
 		{
 			direct3d9 = oDirect3DCreate9(sdk_version);
@@ -521,8 +531,32 @@ bool impl::d3d9::init()
 		return false;
 	}
 
-	logger::log_info("D3D9 live factory capture armed; waiting for the game's Direct3DCreate9 callback");
-	logger::log_debug("D3D9 already-created factories are not probed or enumerated; callback capture is the safe path");
+	// ponytail: create only a factory to recover the shared CreateDevice entry; never create a synthetic device.
+	bool factory_faulted = false;
+	IDirect3D9* factory = call_direct3d_create9_safely(D3D_SDK_VERSION, &factory_faulted);
+	if (factory_faulted)
+	{
+		logger::log_warning("D3D9 late factory capture faulted; waiting for the game's factory callback");
+	}
+	else if (factory == nullptr)
+	{
+		logger::log_warning("D3D9 late factory capture returned null; waiting for the game's factory callback");
+	}
+	else
+	{
+		const bool create_device_hooked = bind_create_device(factory);
+		factory->Release();
+		if (create_device_hooked)
+		{
+			logger::log_debug("D3D9 live CreateDevice capture recovered without the Direct3DCreate9 callback");
+		}
+		else
+		{
+			logger::log_warning("D3D9 live CreateDevice capture could not be recovered from the late factory");
+		}
+	}
+
+	logger::log_info("D3D9 live factory capture armed; waiting for the game's device callback");
 	return true;
 }
 

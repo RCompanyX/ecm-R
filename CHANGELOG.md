@@ -16,6 +16,7 @@ This changelog tracks the tagged releases recorded in this repository.
 ### Changed
 - Changed live D3D9 startup to wait for actual `Direct3DCreate9` and `CreateDevice` callbacks instead of probing a factory from the worker thread; missed callbacks are diagnosed and fail closed without unloading ECM-R.
 - Made guarded live D3D9 factory and device callback invocations MSVC-compatible by isolating SEH from the hook functions without changing fault handling.
+- Changed live D3D9 startup to recover the shared `CreateDevice` hook from a factory-only call when the game's `Direct3DCreate9` callback was missed; no synthetic `NULLREF` device is created.
 
 ### Fixed
 - Fixed custom playback becoming permanently silent after using previous/skip navigation while playback was manually paused.
