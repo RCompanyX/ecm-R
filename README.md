@@ -57,6 +57,7 @@ The in-game overlay also includes an **About** menu with the same fork attributi
 ### dgVoodoo2 compatibility
 
 ECM-R has been tested with dgVoodoo2 v2.79.3 (Proton-compatible). dgVoodoo2 is optional, is not bundled with ECM-R, and other versions are not currently validated.
+Compatibility has also been validated under GE-Proton 11-5. Proton and GE-Proton are test environments, not ECM-R dependencies.
 
 ## Building
 
