@@ -59,11 +59,14 @@ namespace
 			if (!global::renderer_callback_seen.load(std::memory_order_acquire) &&
 				!global::shutdown.exchange(true, std::memory_order_acq_rel))
 			{
-				const bool factory_callback_seen = impl::d3d9::has_direct3d_create9_callback();
+				const bool call_site_callback_seen = impl::d3d9::has_call_site_callback();
+				const bool factory_callback_seen = impl::d3d9::has_factory_callback();
 				const bool device_callback_seen = impl::d3d9::has_create_device_callback();
-				logger::log_error(logger::va("Renderer live callback was not observed within 30 seconds; Direct3DCreate9 callback=%s, CreateDevice callback=%s; audio disabled without unloading ECM-R",
+				logger::log_error(logger::va("Renderer live callback was not observed within 30 seconds; call-site=%s, factory=%s, device=%s, frame=%s; audio disabled without unloading ECM-R",
+					call_site_callback_seen ? "observed" : "not observed",
 					factory_callback_seen ? "observed" : "not observed",
-					device_callback_seen ? "observed" : "not observed"));
+					device_callback_seen ? "observed" : "not observed",
+					global::renderer_callback_seen.load(std::memory_order_acquire) ? "observed" : "not observed"));
 			}
 		}).detach();
 	}

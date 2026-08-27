@@ -8,7 +8,8 @@ namespace impl
 	namespace d3d9
 	{
 		bool init();
-		bool has_direct3d_create9_callback();
+		bool has_call_site_callback();
+		bool has_factory_callback();
 		bool has_create_device_callback();
 		void cleanup();
 	}

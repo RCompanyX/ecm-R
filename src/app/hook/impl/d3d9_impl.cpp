@@ -6,11 +6,13 @@
 
 #include <atomic>
 #include <cstdint>
+#include <cstring>
 #include <mutex>
 
 namespace
 {
 	using direct3d_create9 = IDirect3D9*(WINAPI*)(UINT);
+	using get_proc_address = FARPROC(WINAPI*)(HMODULE, LPCSTR);
 	using create_device = HRESULT(WINAPI*)(IDirect3D9*, UINT, D3DDEVTYPE, HWND, DWORD, D3DPRESENT_PARAMETERS*, IDirect3DDevice9**);
 	using reset = HRESULT(WINAPI*)(IDirect3DDevice9*, D3DPRESENT_PARAMETERS*);
 	using present = HRESULT(WINAPI*)(IDirect3DDevice9*, const RECT*, const RECT*, HWND, const RGNDATA*);
@@ -21,13 +23,15 @@ namespace
 	constexpr std::uint16_t present_index = 17;
 	constexpr std::uint16_t end_scene_index = 42;
 
-	direct3d_create9 oDirect3DCreate9 = nullptr;
+	std::atomic<direct3d_create9> direct3d_create9_provider{ nullptr };
+	get_proc_address oGetProcAddress = nullptr;
 	create_device oCreateDevice = nullptr;
 	reset oReset = nullptr;
 	present oPresent = nullptr;
 	end_scene oEndScene = nullptr;
 
-	void* direct3d_create9_target = nullptr;
+	void** direct3d_create9_import_slot = nullptr;
+	void** get_proc_address_import_slot = nullptr;
 	void* create_device_target = nullptr;
 	void* reset_target = nullptr;
 	void* present_target = nullptr;
@@ -39,7 +43,8 @@ namespace
 	bool device_hook_attempted = false;
 	std::atomic_bool device_hooks_bound{ false };
 	std::atomic_bool imgui_initialized{ false };
-	std::atomic_bool direct3d_create_callback_seen{ false };
+	std::atomic_bool direct3d_create_call_site_seen{ false };
+	std::atomic_bool factory_callback_seen{ false };
 	std::atomic_bool create_device_callback_seen{ false };
 	std::atomic_bool frame_callback_logged{ false };
 
@@ -52,6 +57,8 @@ namespace
 
 	std::atomic<frame_callback> selected_frame_callback{ frame_callback::none };
 
+	IDirect3D9* WINAPI hkDirect3DCreate9CallSite(UINT sdk_version);
+	FARPROC WINAPI hkGetProcAddress(HMODULE module, LPCSTR name);
 	HRESULT WINAPI hkCreateDevice(IDirect3D9* direct3d9, UINT adapter, D3DDEVTYPE device_type, HWND focus_window,
 		DWORD behavior_flags, D3DPRESENT_PARAMETERS* presentation_parameters, IDirect3DDevice9** returned_device);
 	HRESULT WINAPI hkReset(IDirect3DDevice9* device, D3DPRESENT_PARAMETERS* presentation_parameters);
@@ -83,6 +90,149 @@ namespace
 		MH_DisableHook(target);
 		MH_RemoveHook(target);
 		target = nullptr;
+	}
+
+	void** find_import_slot(HMODULE module, const char* imported_module_name, const char* imported_function_name)
+	{
+		if (module == nullptr || imported_function_name == nullptr)
+		{
+			return nullptr;
+		}
+
+		auto* base = reinterpret_cast<std::uint8_t*>(module);
+		auto* dos_header = reinterpret_cast<IMAGE_DOS_HEADER*>(base);
+		if (dos_header->e_magic != IMAGE_DOS_SIGNATURE || dos_header->e_lfanew <= 0)
+		{
+			return nullptr;
+		}
+
+		auto* nt_headers = reinterpret_cast<IMAGE_NT_HEADERS*>(base + dos_header->e_lfanew);
+		if (nt_headers->Signature != IMAGE_NT_SIGNATURE)
+		{
+			return nullptr;
+		}
+		if (nt_headers->OptionalHeader.NumberOfRvaAndSizes <= IMAGE_DIRECTORY_ENTRY_IMPORT)
+		{
+			return nullptr;
+		}
+
+		const IMAGE_DATA_DIRECTORY& import_directory = nt_headers->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT];
+		if (import_directory.VirtualAddress == 0)
+		{
+			return nullptr;
+		}
+
+		auto* descriptor = reinterpret_cast<IMAGE_IMPORT_DESCRIPTOR*>(base + import_directory.VirtualAddress);
+		for (; descriptor->Name != 0; ++descriptor)
+		{
+			const char* current_module_name = reinterpret_cast<const char*>(base + descriptor->Name);
+			if (imported_module_name != nullptr && _stricmp(current_module_name, imported_module_name) != 0)
+			{
+				continue;
+			}
+
+			if (descriptor->FirstThunk == 0)
+			{
+				continue;
+			}
+
+			auto* address_thunks = reinterpret_cast<IMAGE_THUNK_DATA*>(base + descriptor->FirstThunk);
+			if (descriptor->OriginalFirstThunk == 0)
+			{
+				HMODULE imported_module = GetModuleHandleA(current_module_name);
+				const FARPROC imported_function = imported_module == nullptr
+					? nullptr
+					: ::GetProcAddress(imported_module, imported_function_name);
+				if (imported_function == nullptr)
+				{
+					continue;
+				}
+
+				for (std::size_t index = 0; address_thunks[index].u1.Function != 0; ++index)
+				{
+					if (reinterpret_cast<FARPROC>(address_thunks[index].u1.Function) == imported_function)
+					{
+						return reinterpret_cast<void**>(&address_thunks[index].u1.Function);
+					}
+				}
+
+				continue;
+			}
+
+			auto* name_thunks = reinterpret_cast<IMAGE_THUNK_DATA*>(base + descriptor->OriginalFirstThunk);
+			for (std::size_t index = 0; address_thunks[index].u1.Function != 0; ++index)
+			{
+				if ((name_thunks[index].u1.Ordinal & IMAGE_ORDINAL_FLAG) != 0)
+				{
+					continue;
+				}
+
+				const auto* import = reinterpret_cast<const IMAGE_IMPORT_BY_NAME*>(base + name_thunks[index].u1.AddressOfData);
+				if (_stricmp(reinterpret_cast<const char*>(import->Name), imported_function_name) == 0)
+				{
+					return reinterpret_cast<void**>(&address_thunks[index].u1.Function);
+				}
+			}
+		}
+
+		return nullptr;
+	}
+
+	bool patch_import_slot(void** slot, void* replacement, void** original)
+	{
+		if (slot == nullptr || replacement == nullptr || original == nullptr || *slot == nullptr || *slot == replacement)
+		{
+			return false;
+		}
+
+		DWORD old_protection = 0;
+		if (!VirtualProtect(slot, sizeof(void*), PAGE_READWRITE, &old_protection))
+		{
+			logger::log_error(logger::va("D3D9 import call-site protection change failed (Windows error %lu)", GetLastError()));
+			return false;
+		}
+
+		*original = InterlockedExchangePointer(reinterpret_cast<PVOID volatile*>(slot), replacement);
+		DWORD restored_protection = 0;
+		if (!VirtualProtect(slot, sizeof(void*), old_protection, &restored_protection))
+		{
+			logger::log_warning(logger::va("D3D9 import call-site protection restore failed (Windows error %lu)", GetLastError()));
+		}
+		FlushInstructionCache(GetCurrentProcess(), slot, sizeof(void*));
+		return *original != nullptr;
+	}
+
+	void restore_import_slot(void** slot, void* replacement, void* original)
+	{
+		if (slot == nullptr || replacement == nullptr || original == nullptr)
+		{
+			return;
+		}
+
+		DWORD old_protection = 0;
+		if (!VirtualProtect(slot, sizeof(void*), PAGE_READWRITE, &old_protection))
+		{
+			return;
+		}
+
+		if (*slot == replacement)
+		{
+			InterlockedExchangePointer(reinterpret_cast<PVOID volatile*>(slot), original);
+		}
+
+		DWORD restored_protection = 0;
+		VirtualProtect(slot, sizeof(void*), old_protection, &restored_protection);
+		FlushInstructionCache(GetCurrentProcess(), slot, sizeof(void*));
+	}
+
+	bool is_d3d9_module(HMODULE module)
+	{
+		return module != nullptr && module == GetModuleHandleA("d3d9.dll");
+	}
+
+	bool is_named_proc(LPCSTR name, const char* expected)
+	{
+		return name != nullptr && !IS_INTRESOURCE(name) && _stricmp(name, expected) == 0;
 	}
 
 	bool read_vtable_entry(void* object, const std::uint16_t index, void** target)
@@ -244,29 +394,59 @@ namespace
 		return result;
 	}
 
-	IDirect3D9* call_direct3d_create9_safely(UINT sdk_version, bool* faulted)
+	void capture_factory(IDirect3D9* direct3d9)
 	{
-		IDirect3D9* direct3d9 = nullptr;
-		if (faulted == nullptr)
+		if (direct3d9 == nullptr)
 		{
+			return;
+		}
+
+		if (!factory_callback_seen.exchange(true, std::memory_order_acq_rel))
+		{
+			logger::log_info("D3D9 factory callback received");
+		}
+
+		if (!global::shutdown.load(std::memory_order_acquire) && !bind_create_device(direct3d9))
+		{
+			fail_renderer("D3D9 live factory CreateDevice capture failed; renderer disabled");
+		}
+	}
+
+	IDirect3D9* WINAPI hkDirect3DCreate9CallSite(UINT sdk_version)
+	{
+		if (!direct3d_create_call_site_seen.exchange(true, std::memory_order_acq_rel))
+		{
+			logger::log_info("D3D9 Direct3DCreate9 call-site callback received");
+		}
+
+		const direct3d_create9 provider = direct3d_create9_provider.load(std::memory_order_acquire);
+		if (provider == nullptr)
+		{
+			fail_renderer("D3D9 Direct3DCreate9 call-site has no provider function; renderer disabled");
 			return nullptr;
 		}
 
-		*faulted = false;
-		if (oDirect3DCreate9 == nullptr)
-		{
-			return nullptr;
-		}
-
-		__try
-		{
-			direct3d9 = oDirect3DCreate9(sdk_version);
-		}
-		__except (EXCEPTION_EXECUTE_HANDLER)
-		{
-			*faulted = true;
-		}
+		// The provider call and its return value remain untouched; capture happens after it returns.
+		IDirect3D9* direct3d9 = provider(sdk_version);
+		capture_factory(direct3d9);
 		return direct3d9;
+	}
+
+	FARPROC WINAPI hkGetProcAddress(HMODULE module, LPCSTR name)
+	{
+		if (oGetProcAddress == nullptr)
+		{
+			return nullptr;
+		}
+
+		const FARPROC result = oGetProcAddress(module, name);
+		if (result != nullptr && is_d3d9_module(module) && is_named_proc(name, "Direct3DCreate9"))
+		{
+			direct3d_create9_provider.store(reinterpret_cast<direct3d_create9>(result), std::memory_order_release);
+			return reinterpret_cast<FARPROC>(&hkDirect3DCreate9CallSite);
+		}
+
+		return result;
 	}
 
 	HRESULT WINAPI hkCreateDevice(IDirect3D9* direct3d9, UINT adapter, D3DDEVTYPE device_type, HWND focus_window,
@@ -304,37 +484,6 @@ namespace
 		}
 
 		return result;
-	}
-
-	IDirect3D9* WINAPI hkDirect3DCreate9(UINT sdk_version)
-	{
-		if (!direct3d_create_callback_seen.exchange(true, std::memory_order_acq_rel))
-		{
-			logger::log_info("D3D9 live Direct3DCreate9 callback received");
-		}
-
-		if (oDirect3DCreate9 == nullptr)
-		{
-			return nullptr;
-		}
-
-		bool faulted = false;
-		IDirect3D9* direct3d9 = call_direct3d_create9_safely(sdk_version, &faulted);
-		if (faulted)
-		{
-			fail_renderer("D3D9 live Direct3DCreate9 callback faulted; renderer disabled");
-			return nullptr;
-		}
-
-		if (direct3d9 != nullptr && !global::shutdown.load(std::memory_order_acquire))
-		{
-			if (!bind_create_device(direct3d9))
-			{
-				fail_renderer("D3D9 live factory could not bind CreateDevice; renderer disabled");
-			}
-		}
-
-		return direct3d9;
 	}
 
 	HWND get_device_window(IDirect3DDevice9* device)
@@ -502,67 +651,65 @@ HRESULT WINAPI hkEndScene(IDirect3DDevice9* device)
 
 bool impl::d3d9::init()
 {
-	const HMODULE d3d9_module = GetModuleHandleA("d3d9.dll");
-	if (d3d9_module == nullptr)
+	const HMODULE game_module = GetModuleHandleA(nullptr);
+	if (game_module == nullptr)
 	{
-		logger::log_error("D3D9 renderer preflight failed: d3d9.dll is not loaded");
+		logger::log_error("D3D9 renderer preflight failed: game module is unavailable");
 		return false;
 	}
 
-	const FARPROC target = GetProcAddress(d3d9_module, "Direct3DCreate9");
-	if (target == nullptr)
+	void** direct3d_create9_slot = find_import_slot(game_module, "d3d9.dll", "Direct3DCreate9");
+	if (direct3d_create9_slot != nullptr)
 	{
-		logger::log_error("D3D9 renderer preflight failed: Direct3DCreate9 is unavailable");
-		return false;
-	}
-
-	const MH_STATUS status = MH_CreateHook(reinterpret_cast<LPVOID>(target), reinterpret_cast<LPVOID>(&hkDirect3DCreate9), reinterpret_cast<LPVOID*>(&oDirect3DCreate9));
-	if (status != MH_OK)
-	{
-		logger::log_error(logger::va("D3D9 live Direct3DCreate9 hook failed (status %d)", static_cast<int>(status)));
-		return false;
-	}
-	direct3d_create9_target = reinterpret_cast<LPVOID>(target);
-	if (!enable_hook(direct3d_create9_target))
-	{
-		remove_hook(direct3d_create9_target);
-		oDirect3DCreate9 = nullptr;
-		logger::log_error("D3D9 live Direct3DCreate9 hook could not be enabled");
-		return false;
-	}
-
-	// ponytail: create only a factory to recover the shared CreateDevice entry; never create a synthetic device.
-	bool factory_faulted = false;
-	IDirect3D9* factory = call_direct3d_create9_safely(D3D_SDK_VERSION, &factory_faulted);
-	if (factory_faulted)
-	{
-		logger::log_warning("D3D9 late factory capture faulted; waiting for the game's factory callback");
-	}
-	else if (factory == nullptr)
-	{
-		logger::log_warning("D3D9 late factory capture returned null; waiting for the game's factory callback");
-	}
-	else
-	{
-		const bool create_device_hooked = bind_create_device(factory);
-		factory->Release();
-		if (create_device_hooked)
+		void* original = nullptr;
+		original = *direct3d_create9_slot;
+		direct3d_create9_provider.store(reinterpret_cast<direct3d_create9>(original), std::memory_order_release);
+		if (!patch_import_slot(direct3d_create9_slot, reinterpret_cast<void*>(&hkDirect3DCreate9CallSite), &original))
 		{
-			logger::log_debug("D3D9 live CreateDevice capture recovered without the Direct3DCreate9 callback");
+			direct3d_create9_provider.store(nullptr, std::memory_order_release);
+			logger::log_error("D3D9 SPEED2.EXE Direct3DCreate9 import hook could not be installed");
+			return false;
 		}
-		else
-		{
-			logger::log_warning("D3D9 live CreateDevice capture could not be recovered from the late factory");
-		}
+
+		direct3d_create9_import_slot = direct3d_create9_slot;
+		direct3d_create9_provider.store(reinterpret_cast<direct3d_create9>(original), std::memory_order_release);
+		logger::log_info("D3D9 SPEED2.EXE Direct3DCreate9 import call-site hook armed; provider export untouched");
+		return true;
 	}
 
-	logger::log_info("D3D9 live factory capture armed; waiting for the game's device callback");
+	// ponytail: use the game's imported resolver only when a direct import is absent; no provider call from the worker.
+	void** get_proc_address_slot = find_import_slot(game_module, nullptr, "GetProcAddress");
+	if (get_proc_address_slot == nullptr)
+	{
+		logger::log_error("D3D9 renderer preflight failed: SPEED2.EXE has no Direct3DCreate9 or GetProcAddress import");
+		return false;
+	}
+
+	void* original = nullptr;
+	original = *get_proc_address_slot;
+	oGetProcAddress = reinterpret_cast<get_proc_address>(original);
+	if (!patch_import_slot(get_proc_address_slot, reinterpret_cast<void*>(&hkGetProcAddress), &original))
+	{
+		oGetProcAddress = nullptr;
+		logger::log_error("D3D9 SPEED2.EXE GetProcAddress import hook could not be installed");
+		return false;
+	}
+
+	get_proc_address_import_slot = get_proc_address_slot;
+	oGetProcAddress = reinterpret_cast<get_proc_address>(original);
+	logger::log_info("D3D9 Direct3DCreate9 import absent; SPEED2.EXE GetProcAddress call-site hook armed; provider export untouched");
+
 	return true;
 }
 
-bool impl::d3d9::has_direct3d_create9_callback()
+bool impl::d3d9::has_call_site_callback()
 {
-	return direct3d_create_callback_seen.load(std::memory_order_acquire);
+	return direct3d_create_call_site_seen.load(std::memory_order_acquire);
+}
+
+bool impl::d3d9::has_factory_callback()
+{
+	return factory_callback_seen.load(std::memory_order_acquire);
 }
 
 bool impl::d3d9::has_create_device_callback()
@@ -577,13 +724,19 @@ void impl::d3d9::cleanup()
 	remove_hook(present_target);
 	remove_hook(reset_target);
 	remove_hook(create_device_target);
-	remove_hook(direct3d_create9_target);
+	restore_import_slot(get_proc_address_import_slot, reinterpret_cast<void*>(&hkGetProcAddress),
+		reinterpret_cast<void*>(oGetProcAddress));
+	restore_import_slot(direct3d_create9_import_slot, reinterpret_cast<void*>(&hkDirect3DCreate9CallSite),
+		reinterpret_cast<void*>(direct3d_create9_provider.load(std::memory_order_acquire)));
 
 	oEndScene = nullptr;
 	oPresent = nullptr;
 	oReset = nullptr;
 	oCreateDevice = nullptr;
-	oDirect3DCreate9 = nullptr;
+	oGetProcAddress = nullptr;
+	direct3d_create9_provider.store(nullptr, std::memory_order_release);
+	get_proc_address_import_slot = nullptr;
+	direct3d_create9_import_slot = nullptr;
 	device_hooks_bound.store(false, std::memory_order_release);
 	create_device_hook_attempted = false;
 	device_hook_attempted = false;
