@@ -54,6 +54,10 @@ The in-game overlay also includes an **About** menu with the same fork attributi
 - A working ASI loading setup or a compatible mod manager
 - Microsoft Visual C++ Redistributable (x86): https://aka.ms/vs/17/release/vc_redist.x86.exe
 
+### dgVoodoo2 compatibility
+
+ECM-R has been tested with dgVoodoo2 v2.79.3 (Proton-compatible). dgVoodoo2 is optional, is not bundled with ECM-R, and other versions are not currently validated.
+
 ## Building
 
 Build instructions are in [BUILDING.md](BUILDING.md). Pre-built CI artifacts are also available — see the [CI Builds section](BUILDING.md#ci-builds-github-actions) for details.
@@ -182,6 +186,7 @@ The current roadmap includes:
 - If `bass.dll` is missing, incorrect version, or cannot be loaded, audio playback will fail. ECM-R shows Windows error text, numeric BASS diagnostics, and the exact path it tried in the startup popup.
 - BASS is a third-party library subject to the official BASS license terms. ECM-R does not bundle or redistribute `bass.dll`; users must obtain the official runtime themselves.
 - If your usage becomes commercial, review the official BASS licensing terms and obtain any required license before distribution. ECM-R is maintained as a non-commercial fork project.
+- dgVoodoo2 is optional third-party software developed and distributed by its respective authors. It is not bundled or redistributed by this project, remains subject to its own license and terms, and its name and trademarks belong to their respective owners. ECM-R is not affiliated with or endorsed by its authors.
 - ECM-R ignores its hotkeys during the first startup chyron so the initial banner can complete cleanly before manual controls are used.
 - The mod writes a crash dump file on unhandled exceptions.
 - Diagnostic logs are stored under the module-relative `ecm-r/` folder as `ecm-r.x86.log`; rotation keeps at most `ecm-r.x86.log.1`, never creates `.2`, and never removes or rotates timestamped `.dmp` crash evidence. The logger creates `ecm-r/` when missing and does not migrate older root-level logs. Logs can contain module-relative paths, playlist filenames, and Windows/BASS error details; review them before sharing.
