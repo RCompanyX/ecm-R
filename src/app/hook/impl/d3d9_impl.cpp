@@ -226,6 +226,39 @@ namespace
 		return true;
 	}
 
+	HRESULT call_create_device_safely(IDirect3D9* direct3d9, UINT adapter, D3DDEVTYPE device_type, HWND focus_window,
+		DWORD behavior_flags, D3DPRESENT_PARAMETERS* presentation_parameters, IDirect3DDevice9** returned_device,
+		bool* faulted)
+	{
+		HRESULT result = D3DERR_INVALIDCALL;
+		*faulted = false;
+		__try
+		{
+			result = oCreateDevice(direct3d9, adapter, device_type, focus_window, behavior_flags,
+				presentation_parameters, returned_device);
+		}
+		__except (EXCEPTION_EXECUTE_HANDLER)
+		{
+			*faulted = true;
+		}
+		return result;
+	}
+
+	IDirect3D9* call_direct3d_create9_safely(UINT sdk_version, bool* faulted)
+	{
+		IDirect3D9* direct3d9 = nullptr;
+		*faulted = false;
+		__try
+		{
+			direct3d9 = oDirect3DCreate9(sdk_version);
+		}
+		__except (EXCEPTION_EXECUTE_HANDLER)
+		{
+			*faulted = true;
+		}
+		return direct3d9;
+	}
+
 	HRESULT WINAPI hkCreateDevice(IDirect3D9* direct3d9, UINT adapter, D3DDEVTYPE device_type, HWND focus_window,
 		DWORD behavior_flags, D3DPRESENT_PARAMETERS* presentation_parameters, IDirect3DDevice9** returned_device)
 	{
@@ -239,17 +272,9 @@ namespace
 			return D3DERR_INVALIDCALL;
 		}
 
-		HRESULT result = D3DERR_INVALIDCALL;
 		bool faulted = false;
-		__try
-		{
-			result = oCreateDevice(direct3d9, adapter, device_type, focus_window, behavior_flags,
-				presentation_parameters, returned_device);
-		}
-		__except (EXCEPTION_EXECUTE_HANDLER)
-		{
-			faulted = true;
-		}
+		const HRESULT result = call_create_device_safely(direct3d9, adapter, device_type, focus_window,
+			behavior_flags, presentation_parameters, returned_device, &faulted);
 		if (faulted)
 		{
 			fail_renderer("D3D9 live CreateDevice callback faulted; renderer disabled");
@@ -283,16 +308,8 @@ namespace
 			return nullptr;
 		}
 
-		IDirect3D9* direct3d9 = nullptr;
 		bool faulted = false;
-		__try
-		{
-			direct3d9 = oDirect3DCreate9(sdk_version);
-		}
-		__except (EXCEPTION_EXECUTE_HANDLER)
-		{
-			faulted = true;
-		}
+		IDirect3D9* direct3d9 = call_direct3d_create9_safely(sdk_version, &faulted);
 		if (faulted)
 		{
 			fail_renderer("D3D9 live Direct3DCreate9 callback faulted; renderer disabled");
