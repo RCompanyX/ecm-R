@@ -1,5 +1,7 @@
 #pragma once
 
+#include <atomic>
+
 #include "defs.hpp"
 
 struct vec2
@@ -21,7 +23,7 @@ enum game_t : int
 class global
 {
 public:
-	static bool shutdown;
+	static std::atomic_bool shutdown;
 
 	/// Shows a message box attached to the current game window.
 	static void msg_box(std::string title, std::string message)
@@ -64,5 +66,6 @@ public:
 	static bool hide;
 	static HWND hwnd;
 	static kiero::RenderType::Enum renderer;
+	static std::atomic_bool renderer_callback_seen;
 	static GameFlowState global::state;
 };

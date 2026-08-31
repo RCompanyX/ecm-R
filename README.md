@@ -54,6 +54,22 @@ The in-game overlay also includes an **About** menu with the same fork attributi
 - A working ASI loading setup or a compatible mod manager
 - Microsoft Visual C++ Redistributable (x86): https://aka.ms/vs/17/release/vc_redist.x86.exe
 
+### dgVoodoo2 compatibility
+
+ECM-R's dgVoodoo2 integration has been functionally validated in these environments:
+
+- Windows 11 25H2 with dgVoodoo2 v2.87.3:
+  - Direct3D 11, Feature Level 11
+  - Direct3D 12, Feature Level 12
+- GE-Proton 11-5 (x86_64) with dgVoodoo2 v2.79.3 (Proton-compatible):
+  - Direct3D 11, Feature Level 11_0 (`d3d11_fl_11_0`)
+  - Direct3D 12, Feature Level 11_0 (`d3d12_fl_11_0`)
+  - Best available (`bestavailable`)
+
+Both environments were validated for game startup, custom music playback, overlay and menus, hotkeys, track switching, pause and resume, frontend, loading screens, and racing, with no crashes or dump files observed. Other dgVoodoo2 versions and configurations have not been validated.
+
+dgVoodoo2 is optional, is not bundled with ECM-R, and is not an ECM-R dependency. Under Linux, dgVoodoo2 can cause noticeable slowdowns, especially in scenes with smoke physics or heavy lighting, and may cause performance drops or crashes even without ECM-R. Native Proton with DXVK is recommended for better performance and overall results, although ECM-R's technical compatibility with dgVoodoo2 is stable in the tested configurations.
+
 ## Building
 
 Build instructions are in [BUILDING.md](BUILDING.md). Pre-built CI artifacts are also available — see the [CI Builds section](BUILDING.md#ci-builds-github-actions) for details.
@@ -182,6 +198,8 @@ The current roadmap includes:
 - If `bass.dll` is missing, incorrect version, or cannot be loaded, audio playback will fail. ECM-R shows Windows error text, numeric BASS diagnostics, and the exact path it tried in the startup popup.
 - BASS is a third-party library subject to the official BASS license terms. ECM-R does not bundle or redistribute `bass.dll`; users must obtain the official runtime themselves.
 - If your usage becomes commercial, review the official BASS licensing terms and obtain any required license before distribution. ECM-R is maintained as a non-commercial fork project.
+- dgVoodoo2 is optional third-party software developed and distributed by its respective authors. It is not bundled or redistributed by this project, remains subject to its own license and terms, and its name and trademarks belong to their respective owners. ECM-R is not affiliated with, sponsored by, or endorsed by the dgVoodoo2 project or its authors.
+- Windows, DirectX/Direct3D, Proton, GE-Proton, and DXVK are third-party platforms, APIs, or compatibility software referenced only for runtime and testing. Their names and trademarks belong to their respective owners. ECM-R is not affiliated with, sponsored by, or endorsed by their owners or developers. Proton and GE-Proton are test environments, not ECM-R dependencies.
 - ECM-R ignores its hotkeys during the first startup chyron so the initial banner can complete cleanly before manual controls are used.
 - The mod writes a crash dump file on unhandled exceptions.
 - Diagnostic logs are stored under the module-relative `ecm-r/` folder as `ecm-r.x86.log`; rotation keeps at most `ecm-r.x86.log.1`, never creates `.2`, and never removes or rotates timestamped `.dmp` crash evidence. The logger creates `ecm-r/` when missing and does not migrate older root-level logs. Logs can contain module-relative paths, playlist filenames, and Windows/BASS error details; review them before sharing.

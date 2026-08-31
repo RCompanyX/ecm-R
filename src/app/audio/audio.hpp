@@ -23,6 +23,8 @@ class audio
 public:
 	/// Loads BASS, scans the playlist, and prepares playback state.
 	static void init();
+	/// Returns whether the BASS device and ECM-R playback state are ready.
+	static bool is_ready();
 	/// Opens a specific file on the requested channel and updates the current track metadata.
 	static bool play_file(const std::string& file, int channel);
 	/// Stops playback on a single BASS channel and releases its stream.

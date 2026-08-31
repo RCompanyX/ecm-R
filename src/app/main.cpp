@@ -12,6 +12,7 @@
 #include "hook/impl/d3d11_impl.h"
 #include "hook/impl/opengl3_impl.h"
 
+#include <chrono>
 #include <cstring>
 
 game_t game = game_t::NFSU2;
@@ -35,6 +36,39 @@ namespace
 		}
 
 		return "Unknown";
+	}
+
+	void arm_renderer_callback_watchdog()
+	{
+		std::thread([]
+		{
+			const auto started = std::chrono::steady_clock::now();
+			const auto deadline = started + std::chrono::seconds(30);
+
+			while (std::chrono::steady_clock::now() < deadline)
+			{
+				if (global::renderer_callback_seen.load(std::memory_order_acquire) ||
+					global::shutdown.load(std::memory_order_acquire))
+				{
+					return;
+				}
+
+				std::this_thread::sleep_for(std::chrono::milliseconds(250));
+			}
+
+			if (!global::renderer_callback_seen.load(std::memory_order_acquire) &&
+				!global::shutdown.exchange(true, std::memory_order_acq_rel))
+			{
+				const bool call_site_callback_seen = impl::d3d9::has_call_site_callback();
+				const bool factory_callback_seen = impl::d3d9::has_factory_callback();
+				const bool device_callback_seen = impl::d3d9::has_create_device_callback();
+				logger::log_error(logger::va("Renderer live callback was not observed within 30 seconds; call-site=%s, factory=%s, device=%s, frame=%s; audio disabled without unloading ECM-R",
+					call_site_callback_seen ? "observed" : "not observed",
+					factory_callback_seen ? "observed" : "not observed",
+					device_callback_seen ? "observed" : "not observed",
+					global::renderer_callback_seen.load(std::memory_order_acquire) ? "observed" : "not observed"));
+			}
+		}).detach();
 	}
 }
 
@@ -91,9 +125,18 @@ static void(* sub_00537980_)(int a2, char* a3, int a4);
 // Pauses or resumes custom music when specific UI packages trigger ECM-R's mute rules.
 void sub_00537980(int a2, char* a3, int a4)
 {
-	if (audio::ingame_movie_muting)
+	if (sub_00537980_ != nullptr)
 	{
 		sub_00537980_(a2, a3, a4);
+	}
+
+	if (!audio::is_ready() || a3 == nullptr)
+	{
+		return;
+	}
+
+	if (audio::ingame_movie_muting)
+	{
 		audio::sync_game_pause_from_mute_packages();
 		return;
 	}
@@ -117,7 +160,6 @@ void sub_00537980(int a2, char* a3, int a4)
 		audio::play();
 	}
 
-	return sub_00537980_(a2, a3, a4);
 }
 
 // Performs low-level runtime setup: patches, settings load, renderer hook selection, and MinHook enable.
@@ -128,6 +170,8 @@ void init()
 	if (minhook_status != MH_OK)
 	{
 		logger::log_error(logger::va("MinHook initialization failed (status %d)", static_cast<int>(minhook_status)));
+		global::shutdown.store(true, std::memory_order_release);
+		return;
 	}
 	else
 	{
@@ -166,7 +210,7 @@ void init()
 	}
 	case game_t::UNIVERSAL:
 		std::thread([] {
-			while (!global::shutdown)
+			while (!global::shutdown.load(std::memory_order_acquire))
 			{
 				audio::update();
 				std::this_thread::sleep_for(128ms);
@@ -180,56 +224,97 @@ void init()
 	logger::log_debug("Settings initialization completed");
 
 	logger::log_debug("Bootstrap stage: selecting renderer hooks");
-	const auto kiero_status = kiero::init(kiero::RenderType::Auto);
-	if (kiero_status == kiero::Status::Success)
+	bool renderer_hooks_armed = false;
+	bool live_d3d9_selected = false;
+	if (GetModuleHandleA("d3d9.dll") != nullptr)
 	{
-		const kiero::RenderType::Enum render_type = kiero::getRenderType();
-		logger::log_info(logger::va("Renderer selected: %s", renderer_name(render_type)));
-		switch (kiero::getRenderType())
+		logger::log_debug("Renderer preflight: d3d9.dll loaded; bypassing synthetic Kiero D3D9 probe");
+		renderer_hooks_armed = impl::d3d9::init();
+		live_d3d9_selected = renderer_hooks_armed;
+		if (renderer_hooks_armed)
 		{
-#if KIERO_INCLUDE_D3D9
-		case kiero::RenderType::D3D9:
-			impl::d3d9::init();
-			break;
-#endif
-
-#if KIERO_INCLUDE_D3D10
-		case kiero::RenderType::D3D10:
-			impl::d3d10::init();
-			break;
-#endif
-
-#if KIERO_INCLUDE_D3D11
-		case kiero::RenderType::D3D11:
-			impl::d3d11::init();
-			break;
-#endif
-
-#if KIERO_INCLUDE_OPENGL
-		case kiero::RenderType::OpenGL:
-			impl::opengl3::init();
-			break;
-#endif
-
-		case kiero::RenderType::None:
-			logger::log_error("Renderer selection returned None; unloading ECM-R");
-			FreeLibraryAndExitThread(global::self, 0);
-			break;
+			logger::log_info("Renderer selected: D3D9 live game-device capture");
 		}
 	}
 	else
 	{
-		logger::log_error(logger::va("Renderer hook initialization failed (status %d)", static_cast<int>(kiero_status)));
+		kiero::RenderType::Enum requested_renderer = kiero::RenderType::None;
+		if (GetModuleHandleA("d3d10.dll") != nullptr)
+		{
+			requested_renderer = kiero::RenderType::D3D10;
+		}
+		else if (GetModuleHandleA("d3d11.dll") != nullptr)
+		{
+			requested_renderer = kiero::RenderType::D3D11;
+		}
+		else if (GetModuleHandleA("opengl32.dll") != nullptr)
+		{
+			requested_renderer = kiero::RenderType::OpenGL;
+		}
+
+		logger::log_debug(logger::va("Renderer preflight: requested %s", renderer_name(requested_renderer)));
+		const auto kiero_status = requested_renderer == kiero::RenderType::None
+			? kiero::Status::NotSupportedError
+			: kiero::init(requested_renderer);
+		if (kiero_status == kiero::Status::Success)
+		{
+			const kiero::RenderType::Enum render_type = kiero::getRenderType();
+			logger::log_info(logger::va("Renderer selected: %s", renderer_name(render_type)));
+			switch (render_type)
+			{
+#if KIERO_INCLUDE_D3D10
+			case kiero::RenderType::D3D10:
+				renderer_hooks_armed = impl::d3d10::init();
+				break;
+#endif
+
+#if KIERO_INCLUDE_D3D11
+			case kiero::RenderType::D3D11:
+				renderer_hooks_armed = impl::d3d11::init();
+				break;
+#endif
+
+#if KIERO_INCLUDE_OPENGL
+			case kiero::RenderType::OpenGL:
+				renderer_hooks_armed = impl::opengl3::init();
+				break;
+#endif
+
+			case kiero::RenderType::None:
+			default:
+				break;
+			}
+		}
+		else
+		{
+			logger::log_error(logger::va("Renderer hook initialization failed (status %d)", static_cast<int>(kiero_status)));
+		}
+	}
+
+	if (!renderer_hooks_armed)
+	{
+		logger::log_error("Renderer hooks could not be armed; keeping ECM-R loaded and disabling audio");
+		global::shutdown.store(true, std::memory_order_release);
 	}
 
 	const MH_STATUS enable_status = MH_EnableHook(MH_ALL_HOOKS);
 	if (enable_status != MH_OK)
 	{
 		logger::log_error(logger::va("MinHook enable failed (status %d)", static_cast<int>(enable_status)));
+		MH_DisableHook(MH_ALL_HOOKS);
+		if (live_d3d9_selected)
+		{
+			impl::d3d9::cleanup();
+		}
+		global::shutdown.store(true, std::memory_order_release);
 	}
 	else
 	{
 		logger::log_debug("MinHook hooks enabled");
+		if (renderer_hooks_armed && live_d3d9_selected)
+		{
+			arm_renderer_callback_watchdog();
+		}
 	}
 }
 
@@ -402,7 +487,7 @@ DWORD WINAPI OnAttach(LPVOID lpParameter)
 	}
 	__except (CustomUnhandledExceptionFilter(GetExceptionInformation()))
 	{
-		FreeLibraryAndExitThread((HMODULE)lpParameter, 0xDECEA5ED);
+		global::shutdown.store(true, std::memory_order_release);
 	}
 
 	return 0;

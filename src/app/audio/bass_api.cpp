@@ -4,6 +4,8 @@
 #include "fs/fs.hpp"
 #include "logger/logger.hpp"
 
+#include <atomic>
+
 namespace bass_api
 {
     namespace
@@ -34,7 +36,14 @@ namespace bass_api
         channel_play_fn channel_play_ptr = nullptr;
         channel_get_tags_fn channel_get_tags_ptr = nullptr;
         error_get_code_fn error_get_code_ptr = nullptr;
+        std::atomic_bool device_initialized{ false };
         std::string last_error_message;
+
+        bool can_use_device()
+        {
+            return device_initialized.load(std::memory_order_acquire) &&
+                !global::shutdown.load(std::memory_order_acquire);
+        }
 
         std::string format_system_error(DWORD error)
         {
@@ -122,6 +131,11 @@ namespace bass_api
 
     bool load()
     {
+        if (global::shutdown.load(std::memory_order_acquire))
+        {
+            return false;
+        }
+
         if (module_handle != nullptr)
         {
             return true;
@@ -167,6 +181,7 @@ namespace bass_api
 
     void unload()
     {
+        device_initialized.store(false, std::memory_order_release);
         reset();
         if (module_handle != nullptr)
         {
@@ -192,7 +207,7 @@ namespace bass_api
 
     DWORD get_version()
     {
-        if (get_version_ptr == nullptr)
+        if (global::shutdown.load(std::memory_order_acquire) || get_version_ptr == nullptr)
         {
             return 0;
         }
@@ -202,12 +217,24 @@ namespace bass_api
 
     bool init_device(HWND hwnd)
     {
-        return init_ptr != nullptr && init_ptr(-1, 44100, 0, hwnd, nullptr) != FALSE;
+        device_initialized.store(false, std::memory_order_release);
+        if (global::shutdown.load(std::memory_order_acquire) || init_ptr == nullptr)
+        {
+            return false;
+        }
+
+        const bool initialized = init_ptr(-1, 44100, 0, hwnd, nullptr) != FALSE;
+        if (initialized && !global::shutdown.load(std::memory_order_acquire))
+        {
+            device_initialized.store(true, std::memory_order_release);
+        }
+
+        return initialized && !global::shutdown.load(std::memory_order_acquire);
     }
 
     DWORD channel_is_active(DWORD channel)
     {
-        if (channel_is_active_ptr == nullptr)
+        if (!can_use_device() || channel_is_active_ptr == nullptr)
         {
             return active_stopped;
         }
@@ -217,27 +244,27 @@ namespace bass_api
 
     bool channel_set_attribute(DWORD channel, DWORD attribute, float value)
     {
-        return channel_set_attribute_ptr != nullptr && channel_set_attribute_ptr(channel, attribute, value) != FALSE;
+        return can_use_device() && channel_set_attribute_ptr != nullptr && channel_set_attribute_ptr(channel, attribute, value) != FALSE;
     }
 
     bool stream_free(DWORD channel)
     {
-        return stream_free_ptr != nullptr && stream_free_ptr(channel) != FALSE;
+        return can_use_device() && stream_free_ptr != nullptr && stream_free_ptr(channel) != FALSE;
     }
 
     bool start()
     {
-        return start_ptr != nullptr && start_ptr() != FALSE;
+        return can_use_device() && start_ptr != nullptr && start_ptr() != FALSE;
     }
 
     bool pause()
     {
-        return pause_ptr != nullptr && pause_ptr() != FALSE;
+        return can_use_device() && pause_ptr != nullptr && pause_ptr() != FALSE;
     }
 
     bool set_config(DWORD option, DWORD value)
     {
-        return set_config_ptr != nullptr && set_config_ptr(option, value) != FALSE;
+        return can_use_device() && set_config_ptr != nullptr && set_config_ptr(option, value) != FALSE;
     }
 
     bool set_channel_volume(DWORD channel, float volume)
@@ -252,7 +279,7 @@ namespace bass_api
 
     stream_handle_t stream_create_file(const char* file)
     {
-        if (stream_create_file_ptr == nullptr || file == nullptr)
+        if (!can_use_device() || stream_create_file_ptr == nullptr || file == nullptr)
         {
             return 0;
         }
@@ -274,12 +301,12 @@ namespace bass_api
 
     bool channel_play(DWORD channel, bool restart)
     {
-        return channel_play_ptr != nullptr && channel_play_ptr(channel, restart ? TRUE : FALSE) != FALSE;
+        return can_use_device() && channel_play_ptr != nullptr && channel_play_ptr(channel, restart ? TRUE : FALSE) != FALSE;
     }
 
     const void* channel_get_tags(stream_handle_t handle, DWORD tag_type)
     {
-        if (channel_get_tags_ptr == nullptr) return nullptr;
+        if (!can_use_device() || channel_get_tags_ptr == nullptr) return nullptr;
         return channel_get_tags_ptr(handle, tag_type);
     }
 }
