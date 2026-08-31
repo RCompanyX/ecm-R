@@ -56,8 +56,19 @@ The in-game overlay also includes an **About** menu with the same fork attributi
 
 ### dgVoodoo2 compatibility
 
-ECM-R has been tested with dgVoodoo2 v2.79.3 (Proton-compatible). dgVoodoo2 is optional, is not bundled with ECM-R, and other versions are not currently validated.
-Compatibility has also been validated under GE-Proton 11-5. Proton and GE-Proton are test environments, not ECM-R dependencies.
+ECM-R's dgVoodoo2 integration has been functionally validated in these environments:
+
+- Windows 11 25H2 with dgVoodoo2 v2.87.3:
+  - Direct3D 11, Feature Level 11
+  - Direct3D 12, Feature Level 12
+- GE-Proton 11-5 (x86_64) with dgVoodoo2 v2.79.3 (Proton-compatible):
+  - Direct3D 11, Feature Level 11_0 (`d3d11_fl_11_0`)
+  - Direct3D 12, Feature Level 11_0 (`d3d12_fl_11_0`)
+  - Best available (`bestavailable`)
+
+Both environments were validated for game startup, custom music playback, overlay and menus, hotkeys, track switching, pause and resume, frontend, loading screens, and racing, with no crashes or dump files observed. Other dgVoodoo2 versions and configurations have not been validated.
+
+dgVoodoo2 is optional, is not bundled with ECM-R, and is not an ECM-R dependency. Under Linux, dgVoodoo2 can cause noticeable slowdowns, especially in scenes with smoke physics or heavy lighting, and may cause performance drops or crashes even without ECM-R. Native Proton with DXVK is recommended for better performance and overall results, although ECM-R's technical compatibility with dgVoodoo2 is stable in the tested configurations.
 
 ## Building
 
