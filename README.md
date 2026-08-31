@@ -68,6 +68,8 @@ ECM-R's dgVoodoo2 integration has been functionally validated in these environme
 
 Both environments were validated for game startup, custom music playback, overlay and menus, hotkeys, track switching, pause and resume, frontend, loading screens, and racing, with no crashes or dump files observed. Other dgVoodoo2 versions and configurations have not been validated.
 
+The D3D9 path captures the game-created factory and device through the game's Direct3D 9 call site and waits for live frame callbacks instead of probing a synthetic device. It preserves the provider's call/return path and fails closed without unloading ECM-R if the expected callbacks do not arrive.
+
 dgVoodoo2 is optional, is not bundled with ECM-R, and is not an ECM-R dependency. Under Linux, dgVoodoo2 can cause noticeable slowdowns, especially in scenes with smoke physics or heavy lighting, and may cause performance drops or crashes even without ECM-R. Native Proton with DXVK is recommended for better performance and overall results, although ECM-R's technical compatibility with dgVoodoo2 is stable in the tested configurations.
 
 ## Building
@@ -137,6 +139,7 @@ MP1 is a legacy compatibility format and is not a primary QA target. Prefer MP2,
 - Supports shuffle and repeat playback modes with persistent configuration
 - Supports manual pause and resume from both a hotkey and the overlay
 - Supports previous and next track navigation from both hotkeys and the overlay
+- Preserves playback recovery when previous or next navigation is used while manually paused
 - Supports separate frontend and in-game volume levels, with legacy `volume` compatibility for older configurations
 - Plays valid tracks in discovered order when shuffle is disabled
 - Can stop playback after the last valid track when repeat is disabled
@@ -161,7 +164,8 @@ MP1 is a legacy compatibility format and is not a primary QA target. Prefer MP2,
 ### Configuration and Persistence
 
 - Creates `ecm-r.x86.ini` automatically on first launch
-- Writes persistent `ecm-r.x86.log` under `ecm-r/` alongside translations, capturing bootstrap diagnostics before applying `[config] log_level` (`error`, `warning`, `info`, or `debug`); the active file is capped at 2 MiB with one rotating `.1` backup
+- Writes persistent `ecm-r.x86.log` under `ecm-r/` alongside translations, capturing bootstrap diagnostics before applying `[config] log_level` (`error`, `warning`, `info`, or `debug`); the active file is capped at 2 MiB with one rotating `.1` backup, bounded record truncation, and console-only fallback when file logging fails
+- Records bootstrap, MinHook, renderer, settings, BASS, playback, state-transition, pause, loading-screen, and mute-package diagnostics without per-tick, per-frame, or per-poll logging
 - Saves runtime changes for shuffle, repeat, in-game movie muting, volume, and hotkey settings back to the configuration file
 - Migrates older configurations by using legacy `volume` as the fallback source for context-specific volume settings
 - Persists and repairs `[config] language = en` or `es`, loading editable UTF-8 bundles from `ecm-r/translations/en.ini` and `ecm-r/translations/es.ini`
@@ -174,6 +178,7 @@ MP1 is a legacy compatibility format and is not a primary QA target. Prefer MP2,
 - Can stop custom music during loading screens and resume normal playback flow afterward through the `stop_music_on_loading_screens` setting, which defaults to `true`
 - Allows custom music to continue through loading screens when `stop_music_on_loading_screens` is set to `false`
 - Includes validated muting for comic-style in-game movie sequences from the `Actions` overlay menu or the `[config]` `ingame_movie_muting` setting, enabled by default in fresh configurations
+- Guards game-loop, package, and playback callbacks until BASS device initialization is complete and after audio shutdown
 - Keeps the original game files untouched while replacing or muting game music through the mod runtime
 
 ## Configuration

@@ -6,18 +6,20 @@ This changelog tracks the tagged releases recorded in this repository.
 
 ## [Unreleased]
 
+## [v0.6.0-alpha] - 2026-08-31
+
 ### Added
-- Added a dedicated `ECM-R-Win32` artifact for direct pushes to `main`, including `README.md` and `LICENSE` alongside the ASI and translations while preserving `ecm-r-build` for other CI runs.
+- Added live D3D9 capture for NFSU2's dgVoodoo2 renderer facade through the `SPEED2.EXE` `Direct3DCreate9` call site, covering `CreateDevice`, `EndScene`, `Present`, and `Reset` without synthetic-device probing or provider-export hooks.
 - Added persistent `ecm-r.x86.log` diagnostics with bootstrap `debug` capture, persisted `[config] log_level`, a fixed 2 MiB active limit, one `.1` backup, bounded record truncation, and console-only fallback when file logging fails.
 - Added bootstrap, MinHook, renderer, settings, BASS, playback, state-transition, pause, loading-screen, and mute-package diagnostics without per-tick, per-frame, or per-poll logging.
+- Added a dedicated `ECM-R-Win32` artifact for direct pushes to `main`, including `README.md` and `LICENSE` alongside the ASI and translations while preserving `ecm-r-build` for other CI runs.
 - Added Release PDB generation and a separate CI symbol artifact for crash-dump analysis without adding symbols to the runtime package.
-- Added live D3D9 capture for NFSU2's dgVoodoo2 renderer facade through the `SPEED2.EXE` `Direct3DCreate9` call site, covering `CreateDevice`, `EndScene`, `Present`, and `Reset` without synthetic-device probing or provider-export hooks.
 
 ### Fixed
+- Fixed dgVoodoo2 startup by preserving the provider's original call/return path, waiting for live renderer callbacks, and failing closed without unloading ECM-R.
 - Fixed custom playback becoming permanently silent after using previous/skip navigation while playback was manually paused.
 - Fixed renderer/audio startup races so game-loop, package, and playback callbacks cannot call BASS before device initialization or after shutdown.
 - Fixed renderer failure handling so ECM-R stays loaded when direct game hooks still reference it; a bounded no-callback path now fails closed instead of unloading the module.
-- Fixed dgVoodoo2 startup by preserving the provider's original call/return path, waiting for live renderer callbacks, and failing closed without unloading ECM-R.
 
 ## [v0.5.15-alpha] - 2026-08-20
 
@@ -294,3 +296,4 @@ This changelog tracks the tagged releases recorded in this repository.
 [v0.5.13-alpha]: https://github.com/RCompanyX/ecm-R/releases/tag/v0.5.13-alpha
 [v0.5.14-alpha]: https://github.com/RCompanyX/ecm-R/releases/tag/v0.5.14-alpha
 [v0.5.15-alpha]: https://github.com/RCompanyX/ecm-R/releases/tag/v0.5.15-alpha
+[v0.6.0-alpha]: https://github.com/RCompanyX/ecm-R/releases/tag/v0.6.0-alpha
