@@ -1,7 +1,7 @@
 ---
 description: ECM-R idea explorer. Validates feature/bug/enhancement ideas against the codebase. Assesses feasibility, impact, and complexity. Delegates viable ideas to ecmr-plan.
 mode: primary
-model: opencode-go/gpt-5.6-luna
+model: openai/gpt-5.6-luna
 variant: max
 color: '#9B59B6'
 permission:

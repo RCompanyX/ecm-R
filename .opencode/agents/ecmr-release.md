@@ -1,7 +1,7 @@
 ---
 description: ECM-R release manager. Bumps version, updates CHANGELOG.md, generates release notes in docs/releases/.
 mode: all
-model: opencode-go/gpt-5.6-luna
+model: openai/gpt-5.6-luna
 variant: max
 color: '#E67E22'
 ---

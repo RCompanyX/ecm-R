@@ -1,7 +1,7 @@
 ---
 description: ECM-R developer. NFSU2 music mod. C++17, Premake, ImGui, BASS, MinHook.
 mode: all
-model: opencode-go/gpt-5.6-luna
+model: openai/gpt-5.6-luna
 variant: max
 color: '#3498DB'
 ---
