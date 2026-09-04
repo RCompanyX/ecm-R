@@ -1,5 +1,6 @@
 ---
 description: "Update a change - revise existing planning artifacts and keep them coherent (Experimental)"
+agent: ecmr-plan
 ---
 
 Revise a change's existing planning artifacts and keep them coherent. Never edit code.

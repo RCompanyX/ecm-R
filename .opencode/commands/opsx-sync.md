@@ -1,5 +1,6 @@
 ---
 description: "Sync delta specs from a change to main specs"
+agent: ecmr-plan
 ---
 
 Sync delta specs from a change to main specs.

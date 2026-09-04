@@ -74,22 +74,24 @@
 
 ### 11. Project Agents
 
-ECM-R uses specialized subagents managed through OpenCode. Route work to the correct agent type:
+ECM-R uses specialized agents managed through OpenCode. The OpenSpec workflow separates planning-artifact capture from implementation; do not use a nested automatic `explore -> plan -> dev` handoff.
 
 #### `@ecmr-explore` — Idea Explorer (entry point)
-- **Mode:** Primary. Read-only (edit/bash denied). Never edits files or runs builds.
-- **Purpose:** Receive raw ideas (feature/bug/enhancement) → assess feasibility against the codebase → classify `VIABLE` / `NOT_VIABLE` / `NEEDS_CLARIFICATION` → delegate viable ideas to `@ecmr-plan` via Task tool with the full feasibility assessment.
+- **Mode:** Primary. Read-only. File edits are denied; shell access is limited to `openspec list`, `openspec status`, and `openspec context` lookups. Never edits files or runs builds.
+- **Purpose:** Receive raw ideas (feature/bug/enhancement) → assess feasibility against the codebase → classify `VIABLE` / `NOT_VIABLE` / `NEEDS_CLARIFICATION` → delegate viable ideas only to `@ecmr-plan` via Task tool with the full feasibility assessment.
 - **Output:** Structured feasibility document (verdict, affected subsystems, affected GameFlowStates, risk assessment, complexity, prerequisites).
+- **Handoff:** Does not create OpenSpec artifacts. Direct approved planning to `/opsx-propose` or `/opsx-update`; implementation requires `/opsx-apply`.
 
 #### `@ecmr-plan` — Planning Agent
-- **Mode:** Read-only. Never edits files or runs builds.
+- **Mode:** Primary. Read-only during analysis; no source, runtime configuration, deployment, or unrelated documentation edits. After explicit plan approval, it may run the approved OpenSpec CLI commands and edit only CLI-resolved OpenSpec artifacts under `openspec/changes/`; `/opsx-sync` may also update main OpenSpec specs under `openspec/specs/`. Its `task` permission is denied.
 - **Purpose:** Receive feature/bug requests → analyze viability and risk → produce implementation plan covering: affected GameFlowStates, audio transitions, hooks, overlay flows, persisted settings.
+- **OpenSpec capture:** After explicit approval of the conversational plan, run the OpenSpec propose workflow in the same planning session. Follow the CLI artifact graph, instructions, templates, context, rules, and validation checks. Re-check status and report `ARTIFACTS_READY` when planning artifacts are complete.
 - **Output:** Concise plan document. Plan must identify the base/target branch and classify each CHANGELOG entry against it (per §5 classification rule).
-- **Delegation:** After plan is approved, delegates execution to `@ecmr-dev` via Task tool with full plan text.
+- **Delegation:** Never delegate to `@ecmr-dev`, run `/opsx-apply`, or treat `ARTIFACTS_READY` as implementation approval. A separate explicit `/opsx-apply <change>` request starts implementation.
 
 #### `@ecmr-dev` — Developer Agent
 - **Mode:** Read-write. Creates branches (conditionally, per §10 branch policy), edits code, runs builds.
-- **Purpose:** Execute approved plans from `@ecmr-plan`. Implement features, fix bugs, update docs.
+- **Purpose:** Execute approved plans from `@ecmr-plan` after the separate `/opsx-apply <change>` request. Implement features, fix bugs, update docs.
 - **Rules:** Follows AGENTS.md (all sections) + `docs/application-context.md`. Branch creation is conditional — only from `main` or when explicitly requested. Builds `Release | Win-x86`. Updates CHANGELOG.md `## [Unreleased]` as work progresses.
 - **Stack:** C++17, Premake, ImGui, BASS, MinHook.
 
@@ -98,7 +100,24 @@ ECM-R uses specialized subagents managed through OpenCode. Route work to the cor
 - **Workflow:** Bump semver in `stdafx.hpp` → rename CHANGELOG `[Unreleased]` → generate `docs/releases/vX.Y.Z-alpha.md` → sync README/CONFIGURATION/BUILDING.
 - **Restrictions:** Never touches `docs/application-context.md` (owned by dev agent), `src/` (except `stdafx.hpp`), `.opencode/`, or `tools/`.
 
-#### Agent workflow
-Typical task flow: `ecmr-explore` (assess) → `ecmr-plan` (plan) → `ecmr-dev` (implement) → `ecmr-release` (release).
+#### OpenSpec command routing and approval gates
+- `/opsx-explore` → `ecmr-explore` for read-only feasibility research.
+- `/opsx-propose`, `/opsx-update`, and `/opsx-sync` → `ecmr-plan` for planning artifacts and OpenSpec spec synchronization.
+- `/opsx-apply` and `/opsx-archive` → `ecmr-dev` for the separate implementation/archive phase.
+
+Planning and implementation are separate approvals:
+
+```text
+PLAN_DRAFTED
+    -> USER_APPROVES_PLAN
+    -> OPEN_SPEC_CAPTURE
+    -> ARTIFACTS_READY
+    -> USER_REQUESTS_APPLY
+    -> IMPLEMENTATION
+```
+
+Typical task flow: `ecmr-explore` (assess) → `ecmr-plan` (plan, then capture after approval) → `ARTIFACTS_READY` → `/opsx-apply <change>` → `ecmr-dev` (implement) → `ecmr-release` (release).
+
+`/opsx-apply` and the `openspec-apply-change` skill require an explicit change name or one unambiguous active change; otherwise they prompt instead of guessing. OpenSpec CLI status, instruction, and validation output controls artifact completion. Context and operation guidance are advisory and cannot bypass dependencies, denied paths, or approval gates.
 
 `ecmr-explore`, `ecmr-plan`, and `ecmr-dev` load the caveman skill and read AGENTS.md + `docs/application-context.md` on every conversation.

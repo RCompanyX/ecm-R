@@ -28,32 +28,32 @@ Agents should read `AGENTS.md` first for workflow and rule instructions, then th
 
 ### Agent Architecture
 
-ECM-R defines four specialized subagents for development workflows. They are defined in `.opencode/agents/` and managed through OpenCode.
+ECM-R defines four specialized agents for development workflows. They are defined in `.opencode/agents/` and managed through OpenCode. OpenSpec separates planning-artifact capture from implementation, with no nested automatic `explore -> plan -> dev` handoff.
 
 | Agent | Role | Permissions | Key constraint |
 | --- | --- | --- | --- |
-| `ecmr-explore` | Feasibility | Read-only | Entry point; never edits files or runs builds; delegates viable ideas to `ecmr-plan` |
-| `ecmr-plan` | Planning | Read-only | Runs after feasibility assessment; never edits files; delegates execution to `ecmr-dev` |
-| `ecmr-dev` | Development | Read-write | Works from the active branch under `AGENTS.md` branch policy; builds `Release\|Win-x86` |
+| `ecmr-explore` | Feasibility | Read-only | Entry point; only OpenSpec list/status/context lookups; never edits files or runs builds |
+| `ecmr-plan` | Planning and artifact capture | Read-only during analysis; scoped OpenSpec writes after approval | Creates only CLI-resolved OpenSpec artifacts; cannot delegate implementation |
+| `ecmr-dev` | Development | Read-write | Separate apply phase; works from the active branch under `AGENTS.md` branch policy; builds `Release\|Win-x86` |
 | `ecmr-release` | Releases | Read-write | Manages version bumps, changelog, and release notes; hard-skip boundaries are defined in `AGENTS.md` |
 
 #### Idea explorer (`ecmr-explore`)
 
-`ecmr-explore` is the entry point for raw feature, bug, enhancement, or question requests. It researches the codebase, assesses feasibility and impact, and classifies each request as `VIABLE`, `NOT_VIABLE`, or `NEEDS_CLARIFICATION`. It is read-only, never edits files or runs builds, and delegates viable requests to `ecmr-plan` with the full feasibility assessment.
+`ecmr-explore` is the entry point for raw feature, bug, enhancement, or question requests. It researches the codebase, assesses feasibility and impact, and classifies each request as `VIABLE`, `NOT_VIABLE`, or `NEEDS_CLARIFICATION`. It is read-only, never edits files or runs builds, and may delegate viable requests only to `ecmr-plan` with the full feasibility assessment. Its shell access is limited to `openspec list`, `openspec status`, and `openspec context` lookups.
 
 The detailed explorer output template is defined in `.opencode/agents/ecmr-explore.md`.
 
 #### Planning agent (`ecmr-plan`)
 
-After `ecmr-explore` classifies a request as `VIABLE`, `ecmr-plan` assesses implementation risk and produces the implementation plan. Plans cover: affected `GameFlowState` values, audio transitions, hook surfaces, overlay flows, and persisted settings (per AGENTS.md §8).
+After `ecmr-explore` classifies a request as `VIABLE`, `ecmr-plan` assesses implementation risk and produces the implementation plan. Plans cover: affected `GameFlowState` values, audio transitions, hook surfaces, overlay flows, and persisted settings (per AGENTS.md §8). Analysis remains read-only; source, runtime configuration, deployment, and unrelated documentation edits are denied.
 
 CHANGELOG entries belong under `## [Unreleased]`. Plans must compare each entry against the base/target branch, normally `main`, and include the classification rationale: a feature absent from the base is `### Added`; behavioral changes to that same in-progress feature are `### Changed`; `### Fixed` is reserved for regressions of existing base-branch behavior or clearly marked bugs introduced and fixed during the current work.
 
-After the plan is approved, `ecmr-plan` delegates execution to `ecmr-dev` via the Task tool with the full plan text.
+After the user explicitly approves the conversational plan, `ecmr-plan` runs the OpenSpec propose workflow in the same planning session. It follows the CLI artifact graph, instructions, templates, context, rules, and validation checks, writes only the resolved OpenSpec planning artifacts under `openspec/changes/` (and main specs under `openspec/specs/` when running `/opsx-sync`), re-checks status, reports `ARTIFACTS_READY`, and stops. It never delegates to `ecmr-dev` or treats artifact readiness as implementation approval.
 
 #### Developer agent (`ecmr-dev`)
 
-Receives approved plans and implements them. Responsibilities:
+Receives approved plans after the separate `/opsx-apply <change>` request and implements them. Responsibilities:
 
 - Works on the active working branch; creates a `dev_...` branch only when starting from `main` or when explicitly requested (per AGENTS.md §10 branch policy).
 - Implements features, bug fixes, or documentation changes.
@@ -73,9 +73,28 @@ Prepares versioned releases. Workflow:
 
 The release agent's hard-skip boundaries are defined in `AGENTS.md` §11; this document records its release workflow without duplicating those restrictions.
 
-#### Typical workflow
+#### OpenSpec command routing and approval gates
 
-`ecmr-explore` (assess) → `ecmr-plan` (plan) → `ecmr-dev` (implement) → `ecmr-release` (release).
+- `/opsx-explore` -> `ecmr-explore` for read-only feasibility research.
+- `/opsx-propose`, `/opsx-update`, and `/opsx-sync` -> `ecmr-plan` for planning artifacts and OpenSpec spec synchronization.
+- `/opsx-apply` and `/opsx-archive` -> `ecmr-dev` for the separate implementation/archive phase.
+
+Planning and implementation are separate approvals:
+
+```text
+PLAN_DRAFTED
+    -> USER_APPROVES_PLAN
+    -> OPEN_SPEC_CAPTURE
+    -> ARTIFACTS_READY
+    -> USER_REQUESTS_APPLY
+    -> IMPLEMENTATION
+```
+
+Typical workflow:
+
+`ecmr-explore` (assess) -> `ecmr-plan` (plan, then capture after approval) -> `ARTIFACTS_READY` -> `/opsx-apply <change>` -> `ecmr-dev` (implement) -> `ecmr-release` (release).
+
+`/opsx-apply` and the `openspec-apply-change` skill require an explicit change name or one unambiguous active change; otherwise they prompt instead of guessing. OpenSpec CLI status, instruction, and validation output controls artifact completion. Context and operation guidance are advisory and cannot bypass dependencies, denied paths, or approval gates.
 
 See AGENTS.md for detailed agent instructions and rules.
 
