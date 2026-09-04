@@ -1,32 +1,65 @@
 schema: spec-driven
 
-# Project context (optional)
-# This is shown to AI when creating artifacts.
-# Add your tech stack, conventions, style guides, domain knowledge, etc.
-# Example:
-#   context: |
-#     Tech stack: TypeScript, React, Node.js
-#     We use conventional commits
-#     Domain: e-commerce platform
+context: |
+  ECM-R is a Windows ASI plugin for Need for Speed: Underground 2. The active
+  runtime is NFSU2-only and 32-bit; the supported validation target is Release |
+  Win-x86. Do not assume multi-game or x64 runtime support.
 
-# Per-artifact rules (optional)
-# Add custom rules for specific artifacts.
-# Example:
-#   rules:
-#     proposal:
-#       - Keep proposals under 500 words
-#       - Always include a "Non-goals" section
-#     tasks:
-#       - Break tasks into chunks of max 2 hours
+  AGENTS.md is the imperative workflow and policy source. docs/application-context.md
+  is the stable architecture and runtime source of truth. Read both and verify
+  detailed behavior in source before changing it.
 
-# Per-operation guidance (optional)
-# Add advisory guidance for how apply and archive work should be conducted.
-# This is separate from artifact rules above.
-# Example:
-#   operations:
-#     apply:
-#       guidance:
-#         - Keep test summaries concise
-#     archive:
-#       guidance:
-#         - Summarize the archive outcome before finishing
+  Preserve compatibility-sensitive names and boundaries: ecm-r.x86.asi,
+  ecm-r.x86.ini, bass.dll loaded dynamically from the plugin directory, and
+  ecm-r/translations/en.ini plus es.ini. Do not add static BASS SDK or binaries,
+  or silently change runtime filenames, configuration keys, deployment paths, or
+  ECM-R/ECM/BttrDrgn attribution.
+
+  Audio and overlay initialization depends on the first live renderer callback;
+  game-loop and package hooks must not use BASS before device initialization or
+  after global shutdown. Keep GameFlowState-to-playlist-context mapping,
+  loading-screen stop behavior, manual/game pause union, chyron safety, and FE/IG
+  playlist filtering coherent across state transitions.
+
+  Canonical source paths include src/app/defs.hpp for game state,
+  src/app/main.cpp and src/app/hook/hook.hpp for bootstrap and hooks,
+  src/app/audio/ for playback and BASS, src/app/input/ and src/app/menus/ for
+  controls, src/app/settings/ for persistence, src/app/localization/ for locale
+  behavior, src/utils/logger/logger.hpp for diagnostics, and lua/windows.lua plus
+  generate.bat for build and packaging. User-facing contracts live in README.md,
+  BUILDING.md, CONFIGURATION.MD, and docs/application-context.md.
+
+  For source or runtime changes, inspect affected frontend, loading, racing,
+  overlay, pause, and package flows, then use generate.bat and the Release |
+  Win-x86 msbuild target. For configuration, documentation, or workflow-only
+  changes, run the relevant OpenSpec validation and git diff --check; do not claim
+  runtime validation without build or in-game evidence.
+
+rules:
+  proposal:
+    - State the problem, explicit scope, non-goals, affected areas, and key risks.
+    - Identify the target or base branch, normally main, and classify each CHANGELOG entry against it.
+  specs:
+    - Describe observable behavior with testable WHEN/THEN scenarios and clear boundaries.
+    - Do not prescribe internal APIs, hook addresses, or implementation choices as requirements.
+  design:
+    - Map relevant GameFlowState values to playlist context, audio transitions, loading behavior, and chyron safety.
+    - Cover applicable hooks and FNG packages, overlay or hotkey flows, persistence, failure handling, and canonical source files.
+  tasks:
+    - Use dependency-ordered checkbox tasks with concrete verification for each behavior.
+    - Include relevant integration coverage, documentation updates, and CHANGELOG handling without inventing product specs.
+
+operations:
+  apply:
+    guidance:
+      - Review AGENTS.md, docs/application-context.md, and the canonical source files relevant to the task before editing.
+      - Keep protected runtime contracts stable, including NFSU2-only scope, Win-x86 targeting, runtime filenames, configuration keys, deployment paths, and dynamic BASS loading.
+      - For source or runtime work, validate affected state transitions and use generate.bat with the Release | Win-x86 build target; scope validation to the files and behavior changed.
+      - 'Update CHANGELOG.md under ## [Unreleased] and classify entries against the main target branch, while keeping workflow-only changes out of product specs.'
+      - Do not commit, push, create pull requests, or perform other GitHub writes without explicit user approval.
+  archive:
+    guidance:
+      - Review the final planning state, canonical documents, and diff before archiving; preserve OpenSpec-controlled paths and completion checks.
+      - Preserve protected runtime, deployment, configuration, and ECM-R/ECM/BttrDrgn attribution contracts when summarizing the archived change.
+      - Keep version bumps and release-note generation with ecmr-release; archiving does not substitute for release preparation.
+      - Do not commit, push, create pull requests, or perform other GitHub writes without explicit user approval.

@@ -6,6 +6,9 @@ This changelog tracks the tagged releases recorded in this repository.
 
 ## [Unreleased]
 
+### Added
+- Added an ECM-R-aware OpenSpec project context, artifact rules, and apply/archive guidance in `openspec/config.yaml`, grounding planning and validation in the canonical NFSU2/Win-x86 runtime documents without changing product behavior.
+
 ## [v0.6.0-alpha] - 2026-08-31
 
 ### Added
