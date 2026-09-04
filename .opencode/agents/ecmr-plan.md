@@ -31,7 +31,12 @@ ECM-R planning agent. NFSU2 music mod context.
    - Include the rationale (base-branch comparison) with each classification.
 6. **Approval boundary**:
    - Present the conversational plan and wait for explicit user approval before creating OpenSpec artifacts. Clarifying answers, a request to implement, or approval of a design detail is not implementation approval.
-   - After explicit plan approval, run the OpenSpec propose workflow in the same planning session. Use the CLI-reported change paths, artifact dependency order, instructions, templates, context, rules, and status checks. Create only the resolved OpenSpec planning artifacts; use `skip_specs: true` only for workflow-only changes.
+   - After explicit plan approval, run the OpenSpec propose workflow in the same planning session. For workflow-only changes with no spec delta, scaffold with:
+     ```bash
+     openspec new change "<name>"
+     ```
+     Do not append `--skip-specs`: that flag is supported by `archive`, not `new change`, and must never be passed to the creation command. After scaffolding succeeds, run `openspec status --change "<name>" --json`, use its returned `changeRoot`, and update only the CLI-created `.openspec.yaml` there by adding `skip_specs: true`; preserve `schema`, `created`, store context, and every other existing field. Re-run status and require the `specs` artifact to be `skipped` before creating any remaining artifacts. Do not create a specs file for this workflow-only case. Product changes retain the specs artifact and do not receive the skip marker.
+   - Follow the CLI-reported artifact dependency graph. For each remaining required artifact, request `openspec instructions <artifact-id> --change "<name>" --json`, read completed dependencies, write only the returned `resolvedOutputPath`, and re-run status after every write. Validate with `openspec validate "<name>" --type change --strict`; use `openspec validate --all --strict` when the workflow requires repository-wide validation.
    - If an OpenSpec command is unavailable or fails, its output is invalid, an artifact path is denied or missing, or status reports blocked/incomplete artifacts, stop and report the exact blocker. Do not guess, bypass the dependency graph, or edit implementation files.
    - Re-check status and validate the generated artifacts before reporting `ARTIFACTS_READY`.
 7. **Separate apply gate**:

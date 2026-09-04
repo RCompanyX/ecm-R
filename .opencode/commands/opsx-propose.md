@@ -62,6 +62,22 @@ When the user is ready to implement, they must start the apply workflow explicit
    ```
    This creates a scaffolded change in the planning home resolved by the CLI with `.openspec.yaml`.
 
+   For a workflow-only change with no spec delta, do not pass `--skip-specs` to
+   `new change`; OpenSpec 1.12.0 supports that option for `archive` only. After
+   the scaffold command succeeds:
+
+   1. Run `openspec status --change "<name>" --json`.
+   2. Read `changeRoot` from that response; do not assume a repository-local path.
+   3. Read the CLI-created `.openspec.yaml` under `changeRoot` and add only
+      `skip_specs: true`, preserving `schema`, `created`, store context, and all
+      other existing metadata.
+   4. Re-run status and require the `specs` artifact to report `skipped` before
+      creating proposal, design, or tasks. Do not create a specs file.
+
+   Product changes keep the `specs` artifact and must not receive the skip marker.
+   If the metadata file, resolved path, or skipped status is missing or unexpected,
+   stop and report the exact CLI state.
+
 4. **Get the artifact build order**
    ```bash
    openspec status --change "<name>" --json
@@ -118,6 +134,10 @@ When the user is ready to implement, they must start the apply workflow explicit
    ```bash
    openspec status --change "<name>"
    ```
+   Before reporting `ARTIFACTS_READY`, validate with
+   `openspec validate "<name>" --type change --strict` (and
+   `openspec validate --all --strict` when repository-wide validation is
+   required).
 
 **Output**
 

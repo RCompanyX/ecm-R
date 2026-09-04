@@ -10,6 +10,9 @@ This changelog tracks the tagged releases recorded in this repository.
 - Added an ECM-R-aware OpenSpec project context, artifact rules, and apply/archive guidance in `openspec/config.yaml`, grounding planning and validation in the canonical NFSU2/Win-x86 runtime documents without changing product behavior.
 - Added explicit OpenSpec agent routing and two approval gates: `ecmr-plan` captures approved planning artifacts and reports `ARTIFACTS_READY`, while `/opsx-apply` separately selects `ecmr-dev` for implementation; no ECM-R runtime behavior changed.
 
+### Changed
+- Clarified the OpenSpec planner workflow for workflow-only changes: scaffold with `openspec new change "<name>"` without `--skip-specs`, then set `skip_specs: true` in the CLI-resolved `.openspec.yaml` before status-driven artifact capture. Compared with target `main`, this corrects the in-progress workflow integration rather than a released ECM-R runtime regression.
+
 ## [v0.6.0-alpha] - 2026-08-31
 
 ### Added
