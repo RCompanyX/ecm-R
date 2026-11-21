@@ -1,8 +1,6 @@
 ---
 description: ECM-R planner. Analyzes, researches, and captures approved plans in OpenSpec artifacts. Does not implement.
 mode: primary
-model: openai/gpt-5.6-luna
-variant: max
 color: '#2ECC71'
 permission:
   edit:
